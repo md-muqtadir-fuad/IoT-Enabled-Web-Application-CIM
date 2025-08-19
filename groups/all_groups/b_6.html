@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Line Following AGV for Industrial Material Transport (Group B6)</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.0.0"></script>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+    <h1>Group B6</h1>
+    <h2>Line Following AGV for Industrial Material Transport, Real-Time Speed &amp; Position Monitoring</h2>
+
+    <section>
+      <strong>Group Members:</strong>
+      <ul>
+        <li>Nawar-E-Zannat</li>
+        <li>Afia Mayful</li>
+        <li>Khaled Ammar</li>
+        <li>Nasimul Sami</li>
+        <li>Jannatul Maoya</li>
+      </ul>
+    </section>
+
+    <section>
+      <strong>Problem Statement:</strong>
+      <p>
+        In industrial environments, monitoring the real-time position and speed of AGVs (Automated Guided Vehicles) is essential for safety, efficiency, and coordination. This project designs an AGV prototype with sensors for precise speed and position tracking, along with wireless data transmission to a server. Additionally, the system calculates the AGV’s yearly utilized operational time.
+      </p>
+    </section>
+
+    <section>
+      <strong>Devices &amp; Tasks:</strong>
+      <table>
+        <tr>
+          <th>Device / Component</th>
+          <th>Quantity</th>
+          <th>Task / Function</th>
+        </tr>
+        <tr>
+          <td>Magnetic Sensor</td>
+          <td>1</td>
+          <td>Detects position markers along the AGV path</td>
+        </tr>
+        <tr>
+          <td>IR Sensor Rotary Encoder</td>
+          <td>1</td>
+          <td>Tracks wheel rotation for speed/distance measurement</td>
+        </tr>
+        <tr>
+          <td>Laser Sensor</td>
+          <td>1</td>
+          <td>Measures displacement from a reference point</td>
+        </tr>
+        <tr>
+          <td>DC Motor</td>
+          <td>2</td>
+          <td>Drives the AGV wheels</td>
+        </tr>
+        <tr>
+          <td>Servomotor</td>
+          <td>1</td>
+          <td>Steers or manipulates AGV components</td>
+        </tr>
+        <tr>
+          <td>Microcontroller (Arduino)</td>
+          <td>1</td>
+          <td>Main controller for sensors and actuators</td>
+        </tr>
+        <tr>
+          <td>ESP32 Wi-Fi Module</td>
+          <td>1</td>
+          <td>Uploads real-time data to server</td>
+        </tr>
+        <tr>
+          <td>Memory (EEPROM/Flash)</td>
+          <td>1</td>
+          <td>Stores yearly operation time</td>
+        </tr>
+      </table>
+    </section>
+
+    <section>
+      <strong>Project Description:</strong>
+      <ol>
+        <li>The rotary encoder measures wheel rotation to calculate the AGV's speed and travel distance.</li>
+        <li>Laser sensor records AGV displacement from a set point.</li>
+        <li>System tracks total active time for yearly operational statistics.</li>
+        <li>Data is transmitted via Wi-Fi (ESP32) to a server for monitoring and optimization.</li>
+      </ol>
+      <p>
+        This AGV solution enables smarter, safer, and more efficient industrial material handling with real-time and historical analytics.
+      </p>
+    </section>
+
+    <section>
+      <strong>Poster:</strong>
+      <p>
+        <a href="../poster/B6.jpg" target="_blank">Download Project Poster</a>
+      </p>
+      <p>
+        <img src="../poster/B6.jpg" alt="Project Poster" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+      </p>
+    </section>
+
+    <section>
+      <strong>Arduino Code (HC-SR04 Laser Distance):</strong>
+      <pre>
+#define TRIG_PIN 9
+#define ECHO_PIN 10
+
+void setup() {
+  Serial.begin(9600);
+  pinMode(TRIG_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
+}
+
+void loop() {
+  long duration;
+  float distance;
+
+  digitalWrite(TRIG_PIN, LOW);
+  delayMicroseconds(2);
+
+  digitalWrite(TRIG_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG_PIN, LOW);
+
+  duration = pulseIn(ECHO_PIN, HIGH);
+  distance = duration * 0.0343 / 2;
+
+  Serial.print("Distance:");
+  Serial.println(distance);
+
+  delay(500);
+}
+      </pre>
+      <strong>ESP32 Code (Wi-Fi Upload):</strong>
+      <pre>
+#include &lt;WiFi.h&gt;
+#include &lt;HTTPClient.h&gt;
+
+const char* ssid = "Your_SSID";
+const char* password = "Your_PASSWORD";
+String baseURL = "http://ipe20-buet.top/get_data.php?";
+
+#define RXD2 16  // ESP32 GPIO16 to Arduino UNO TX
+#define TXD2 17  // ESP32 GPIO17 to Arduino UNO RX
+
+void setup() {
+  Serial.begin(115200);
+  Serial2.begin(9600, SERIAL_8N1, RXD2, TXD2);
+
+  WiFi.begin(ssid, password);
+  Serial.print("Connecting to WiFi");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\nWiFi connected");
+}
+
+void loop() {
+  if (Serial2.available()) {
+    String sensorData = Serial2.readStringUntil('\n');
+    sensorData.trim();
+
+    Serial.println("Received from Arduino: " + sensorData);
+
+    String fullURL = baseURL + "&g=groupB4&sn=soil_sensor&sd=" + sensorData + "&p=passB4&format=json";
+
+    if (WiFi.status() == WL_CONNECTED) {
+      HTTPClient http;
+      http.begin(fullURL);
+      int httpCode = http.GET();
+
+      if (httpCode > 0) {
+        String response = http.getString();
+        Serial.println("Server response: " + response);
+      } else {
+        Serial.println("HTTP GET failed. Code: " + String(httpCode));
+      }
+      http.end();
+    } else {
+      Serial.println("WiFi not connected.");
+    }
+  }
+
+  delay(2000);
+}
+      </pre>
+    </section>
+
+    <section>
+      <strong>Video Demonstration</strong>
+      <center>
+        <iframe width="560" height="315" src="" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+      </center>
+    </section>
+
+    <section>
+      <strong>Sensor Data Visualization:</strong><br>
+      <label for="sensor_name">Select Sensor:</label>
+      <select id="sensor_name" onchange="loadGraph()">
+        <option value="">Loading sensors...</option>
+      </select>
+      <canvas id="myChart" width="600" height="300"></canvas>
+    </section>
+
+  <script>
+    let chart = null;
+    const threshold = 30; // example threshold, edit as needed for your group
+    async function loadSensors() {
+      try {
+        const response = await fetch('show_data.php?mode=names&group=groupB6');
+        if (!response.ok) throw new Error('Network response was not ok');
+        const sensors = await response.json();
+        let dropdown = document.getElementById('sensor_name');
+        dropdown.innerHTML = "";
+        if (sensors.length === 0) {
+          dropdown.innerHTML = '<option value="">No sensors found</option>';
+          return;
+        }
+        sensors.forEach(sensor => {
+          let opt = document.createElement('option');
+          opt.value = sensor;
+          opt.textContent = sensor;
+          dropdown.appendChild(opt);
+        });
+        dropdown.value = sensors[0];
+        loadGraph();
+      } catch (error) {
+        alert('Failed to load sensor list.');
+      }
+    }
+
+    async function loadGraph() {
+      const sensorName = document.getElementById('sensor_name').value;
+      if (!sensorName) return;
+      try {
+        const response = await fetch(`show_data.php?mode=data&group=groupB6&sensor_name=${encodeURIComponent(sensorName)}`);
+        if (!response.ok) throw new Error('Network response was not ok');
+        const data = await response.json();
+        if (data.error) {
+          alert(data.error);
+          return;
+        }
+        const timestamps = data.timestamps.slice(-50);
+        const values = data.values.slice(-50);
+        const below = [], above = [];
+        values.forEach((value, i) => {
+          if (value <= threshold) {
+            below[i] = value; above[i] = null;
+          } else {
+            below[i] = null; above[i] = value;
+          }
+        });
+        const ctx = document.getElementById('myChart').getContext('2d');
+        if (chart) chart.destroy();
+        chart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: timestamps,
+            datasets: [
+              {
+                label: '≤ Threshold',
+                data: below,
+                borderColor: '#8B0000',
+                backgroundColor: 'rgba(139,0,0,0.1)',
+                fill: true,
+                tension: 0.4
+              },
+              {
+                label: '> Threshold',
+                data: above,
+                borderColor: '#FF0000',
+                backgroundColor: 'rgba(255,0,0,0.1)',
+                fill: true,
+                tension: 0.4
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            scales: {
+              x: { title: { display: true, text: 'Timestamp' } },
+              y: { title: { display: true, text: 'Sensor Data' }, beginAtZero: true }
+            },
+            plugins: {
+              annotation: {
+                annotations: {
+                  thresholdLine: {
+                    type: 'line',
+                    yMin: threshold,
+                    yMax: threshold,
+                    borderColor: '#A52A2A',
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    label: {
+                      content: `Threshold: ${threshold}`,
+                      enabled: true,
+                      position: 'end'
+                    }
+                  }
+                }
+              }
+            }
+          }
+        });
+      } catch (error) {
+        alert('Failed to load sensor data.');
+      }
+    }
+    loadSensors();
+  </script>
+</body>
+</html>

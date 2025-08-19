@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Fire Accident Detection in Industrial Storage</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="../style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <h1>Group A1</h1>
+  <h2>Fire Accident Detection in Industrial Storage</h2>
+
+  <section>
+    <strong>Group Members:</strong>
+    <ul>
+      <li>2008001</li>
+      <li>2008003</li>
+      <li>2008012</li>
+      <li>2008039</li>
+      <li>2008042</li>
+    </ul>
+  </section>
+
+  <section>
+    <strong>Problem Statement:</strong>
+    <p>
+      In industrial storage rooms or factory environments, overheating and gas leaks pose serious fire and safety hazards. Manual monitoring is inefficient and delays in response can cause equipment damage, safety risks, or even disasters.
+    </p>
+  </section>
+
+  <section>
+    <strong>Devices & Tasks:</strong>
+    <table>
+      <tr>
+        <th>Device / Component</th>
+        <th>Task / Function</th>
+      </tr>
+      <tr>
+        <td>Temperature Sensor (DS18B20)</td>
+        <td>Detects ambient temperature and overheating</td>
+      </tr>
+      <tr>
+        <td>Smoke Sensor (MQ-2)</td>
+        <td>Detects smoke/gas leaks indicating fire</td>
+      </tr>
+      <tr>
+        <td>Buzzer</td>
+        <td>Audible alert if smoke or high temperature is detected</td>
+      </tr>
+      <tr>
+        <td>Red Flashing Light / LED</td>
+        <td>Visual fire alert</td>
+      </tr>
+      <tr>
+        <td>ESP-01S Microcontroller</td>
+        <td>Handles sensor readings, logic, and data upload via Wi-Fi</td>
+      </tr>
+    </table>
+  </section>
+
+  <section>
+    <strong>Project Description:</strong>
+    <ol>
+      <li>The ESP-01S continuously reads data from temperature and smoke sensors.</li>
+      <li>If temperature or smoke exceeds safe thresholds, it triggers the buzzer and red light locally for immediate alert.</li>
+      <li>The system uploads real-time data to a central server via Wi-Fi for live monitoring and historical analysis.</li>
+      <li>Alerts are also sent to designated personnel.</li>
+      <li>This automated safety solution allows fast response and better decision-making in industrial environments.</li>
+    </ol>
+  </section>
+
+  <section>
+    <strong>Poster:</strong>
+    <p>
+      <a href="#" target="_blank">Download Project Poster</a>
+    </p>
+    <p>
+      <img src="../poster/A1.jpg" alt="Project Poster" style="max-width:100%; height:auto; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+    </p>
+  </section>
+
+  <section>
+    <strong>Video Demonstration</strong>
+    <center>
+      <iframe width="560" height="315" src="https://www.youtube.com/embed/9MoFflcCCDw" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+    </center>
+  </section>
+
+  <section>
+    <strong>Arduino Code: Smoke Sensor (ESP8266 + MQ-2)</strong>
+    <pre>
+#include &lt;ESP8266WiFi.h&gt;
+#include &lt;ESP8266HTTPClient.h&gt;
+const char* ssid = "aks";
+const char* password = "akash123";
+const char* baseUrl = "http://ipe20-buet.top/get_data.php";
+const byte MQ2_PIN = 0;
+const byte LED_PIN = 2;
+WiFiClient client;
+void setup() {
+  Serial.begin(115200);
+  pinMode(MQ2_PIN, INPUT);
+  pinMode(LED_PIN, OUTPUT);
+  digitalWrite(LED_PIN, LOW);
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) { delay(500); }
+}
+void loop() {
+  int smokeDetected = digitalRead(MQ2_PIN);
+  String smokeStatus = (smokeDetected == LOW) ? "1" : "0";
+  digitalWrite(LED_PIN, (smokeDetected == LOW) ? HIGH : LOW);
+  if (WiFi.status() == WL_CONNECTED) {
+    String fullURL = String(baseUrl) + "?g=groupA1&sn=Smoke&sd=" + smokeStatus + "&p=passA1&format=json";
+    HTTPClient http; http.begin(client, fullURL); int httpCode = http.GET();
+    http.end();
+  }
+  delay(5000);
+}
+    </pre>
+    <strong>Arduino Code: Temperature Sensor (ESP8266 + DS18B20)</strong>
+    <pre>
+#include &lt;ESP8266WiFi.h&gt;
+#include &lt;ESP8266HTTPClient.h&gt;
+#include &lt;OneWire.h&gt;
+#include &lt;DallasTemperature.h&gt;
+const char* ssid = "aks";
+const char* password = "akash123";
+const char* baseUrl = "http://ipe20-buet.top/get_data.php";
+const byte DS18B20_PIN = 0;
+const byte LED_PIN = 2;
+OneWire oneWire(DS18B20_PIN);
+DallasTemperature sensors(&oneWire);
+WiFiClient client;
+void setup() {
+  Serial.begin(115200);
+  pinMode(LED_PIN, OUTPUT);
+  digitalWrite(LED_PIN, LOW);
+  sensors.begin();
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) { delay(500); }
+}
+void loop() {
+  sensors.requestTemperatures();
+  float temperature = sensors.getTempCByIndex(0);
+  if (temperature > 35.0) { digitalWrite(LED_PIN, HIGH); }
+  else { digitalWrite(LED_PIN, LOW); }
+  if (WiFi.status() == WL_CONNECTED) {
+    String url = String(baseUrl) + "?g=groupA1&sn=Temperature&sd=" + String(temperature,2) + "&p=passA1&format=json";
+    HTTPClient http; http.begin(client, url); int httpCode = http.GET();
+    http.end();
+  }
+  delay(5000);
+}
+    </pre>
+  </section>
+
+  <section>
+    <strong>Sensor Data Visualization:</strong><br>
+    <label for="sensor_name">Select Sensor:</label>
+    <select id="sensor_name" onchange="loadGraph()">
+      <option value="">Loading sensors...</option>
+    </select>
+    <canvas id="myChart" width="600" height="300"></canvas>
+  </section>
+
+  <script>
+    let chart = null;
+    const groupName = 'groupA1';
+    async function loadSensors() {
+      try {
+        const response = await fetch(`show_data.php?mode=names&group=${groupName}`);
+        if (!response.ok) throw new Error('Network response was not ok');
+        const sensors = await response.json();
+        let dropdown = document.getElementById('sensor_name');
+        dropdown.innerHTML = "";
+        if (sensors.length === 0) {
+          dropdown.innerHTML = '<option value="">No sensors found</option>';
+          return;
+        }
+        sensors.forEach(sensor => {
+          let opt = document.createElement('option');
+          opt.value = sensor;
+          opt.textContent = sensor;
+          dropdown.appendChild(opt);
+        });
+        dropdown.value = sensors[0];
+        loadGraph();
+      } catch (error) {
+        alert('Failed to load sensor list.');
+      }
+    }
+    async function loadGraph() {
+      const sensorName = document.getElementById('sensor_name').value;
+      if (!sensorName) return;
+      try {
+        const response = await fetch(`show_data.php?mode=data&group=${groupName}&sensor_name=${encodeURIComponent(sensorName)}`);
+        if (!response.ok) throw new Error('Network response was not ok');
+        const data = await response.json();
+        if (data.error) {
+          alert(data.error);
+          return;
+        }
+        const ctx = document.getElementById('myChart').getContext('2d');
+        if(chart) chart.destroy();
+        chart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: data.timestamps,
+            datasets: [{
+              label: `${sensorName} Data`,
+              data: data.values,
+              borderColor: 'rgba(75, 192, 192, 1)',
+              backgroundColor: 'rgba(75, 192, 192, 0.2)',
+              fill: true,
+              tension: 0.3
+            }]
+          },
+          options: {
+            responsive: true,
+            scales: {
+              x: { title: { display: true, text: 'Timestamp' } },
+              y: { title: { display: true, text: 'Sensor Data' }, beginAtZero: true }
+            }
+          }
+        });
+      } catch (error) {
+        alert('Failed to load sensor data.');
+      }
+    }
+    loadSensors();
+  </script>
+</body>
+</html>

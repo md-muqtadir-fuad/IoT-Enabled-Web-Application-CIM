@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Smoke and Fire Detector (Group A10)</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+  <h1>Group A10</h1>
+  <h2>Smoke and Fire Detector (IoT-based Real-time Safety Monitoring)</h2>
+
+  <section>
+    <strong>Group Members:</strong>
+    <ul>
+      <li>Puja Basak (Group Leader)</li>
+      <!-- Add your other group members here -->
+    </ul>
+  </section>
+
+  <section>
+    <strong>Problem Statement:</strong>
+    <p>
+      Detect smoke and fire hazards in industrial and storage environments and automatically trigger ventilation and alarm to enhance safety and prevent disasters.
+    </p>
+  </section>
+
+  <section>
+    <strong>Devices & Tasks:</strong>
+    <table>
+      <tr>
+        <th>Device / Component</th>
+        <th>Quantity</th>
+        <th>Task / Function</th>
+      </tr>
+      <tr>
+        <td>MQ2 Smoke Sensor</td>
+        <td>1</td>
+        <td>Detects smoke/gas (analog value, triggers fan above threshold)</td>
+      </tr>
+      <tr>
+        <td>Flame Sensor</td>
+        <td>1</td>
+        <td>Detects visible flame (digital output, triggers buzzer)</td>
+      </tr>
+      <tr>
+        <td>Fan (via Relay)</td>
+        <td>1</td>
+        <td>Ventilates area when smoke/gas is detected</td>
+      </tr>
+      <tr>
+        <td>Buzzer</td>
+        <td>1</td>
+        <td>Alarm if flame detected</td>
+      </tr>
+      <tr>
+        <td>Arduino Uno</td>
+        <td>1</td>
+        <td>Main controller</td>
+      </tr>
+      <tr>
+        <td>ESP8266</td>
+        <td>1</td>
+        <td>Uploads data to Firebase</td>
+      </tr>
+      <tr>
+        <td>Jumper Wires, Power Supply</td>
+        <td>Several</td>
+        <td>Connections & Power</td>
+      </tr>
+    </table>
+  </section>
+
+  <section>
+    <strong>Project Description:</strong>
+    <ol>
+      <li>MQ2 sensor continuously measures smoke/gas levels (ADC value).</li>
+      <li>Flame sensor detects fire (digital signal).</li>
+      <li>If smoke exceeds threshold, fan turns ON automatically for ventilation.</li>
+      <li>If flame detected, buzzer triggers for alarm.</li>
+      <li>All sensor readings are sent to Firebase for live monitoring and analytics.</li>
+      <li>Data and real-time status are visualized via web dashboard.</li>
+    </ol>
+  </section>
+  <section>
+  <strong>Poster:</strong>
+  <p>
+    <a href="../poster/A10.jpg" target="_blank">Download Project Poster</a>
+  </p>
+  <p>
+    <img src="../poster/A10.jpg" alt="Project Poster" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+  </p>
+</section>
+
+<section>
+  <strong>Video Demonstration:</strong>
+  <center>
+    <iframe width="560" height="315" src="https://www.youtube.com/embed/OT5LnHcVbM4?si=JLIm3PO8JvpjTTtU" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+  </center>
+</section>
+  <section>
+    <strong>Sensor Data Visualization:</strong><br>
+    <div id="dataContainer">Loading sensor data...</div>
+    <canvas id="ppmChart"></canvas>
+  </section>
+
+  <section>
+    <strong>Arduino Code:</strong>
+    <pre>
+<code>
+// Define pin numbers
+const int mq2Pin = A0;        // MQ2 analog output
+const int flamePin = 2;       // Flame sensor digital output
+const int fanPin = 3;         // Fan (via relay)
+const int buzzerPin = 4;      // Buzzer
+
+// Threshold value for smoke/gas (adjust after testing)
+const int gasThreshold = 300;
+
+void setup() {
+  pinMode(mq2Pin, INPUT);
+  pinMode(flamePin, INPUT);
+  pinMode(fanPin, OUTPUT);
+  pinMode(buzzerPin, OUTPUT);
+
+  digitalWrite(fanPin, LOW);      // Fan initially OFF
+  digitalWrite(buzzerPin, LOW);   // Buzzer initially OFF
+
+  Serial.begin(9600); // For debugging
+}
+
+void loop() {
+  int gasValue = analogRead(mq2Pin);
+  int flameState = digitalRead(flamePin);
+
+  // Debug output
+  Serial.print("Gas Value: ");
+  Serial.print(gasValue);
+  Serial.print(" | Flame: ");
+  Serial.println(flameState);
+
+  // Control Fan based on Gas/Smoke level
+  if (gasValue > gasThreshold) {
+    digitalWrite(fanPin, HIGH);  // Turn ON fan
+  } else {
+    digitalWrite(fanPin, LOW);   // Turn OFF fan
+  }
+
+  // Control Buzzer based on Flame detection
+  if (flameState == LOW) {
+    digitalWrite(buzzerPin, HIGH); // Flame detected (LOW = detected)
+  } else {
+    digitalWrite(buzzerPin, LOW);  // No flame
+  }
+
+  delay(200); // Small delay to stabilize readings
+}
+</code>
+    </pre>
+  </section>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
+    import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyB5kIjUA8KkfDWejmzC3cau4K6PeAdBJKg",
+      authDomain: "suiiiiiiiiiiii.firebaseapp.com",
+      databaseURL: "https://suiiiiiiiiiiii-default-rtdb.firebaseio.com",
+      projectId: "suiiiiiiiiiiii",
+      storageBucket: "suiiiiiiiiiiii.appspot.com",
+      messagingSenderId: "409324367563",
+      appId: "1:409324367563:web:eea6fc7ddc059745b8b54e"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const dataRef = ref(db, "pujaNew");
+
+    const container = document.getElementById("dataContainer");
+    const ppmCtx = document.getElementById("ppmChart").getContext("2d");
+    let ppmChart;
+
+    function adcToPPM(adc) {
+      return Math.round(adc * 39.4); // Convert ADC to PPM
+    }
+
+    async function loadData() {
+      try {
+        container.textContent = "Loading sensor data...";
+
+        const snapshot = await get(dataRef);
+        if (!snapshot.exists()) {
+          container.textContent = "❌ No sensor data found.";
+          return;
+        }
+
+        const data = snapshot.val();
+        const batchKeys = Object.keys(data)
+          .filter(k => typeof data[k] === "object" && data[k]["1"])
+          .sort((a, b) => b.localeCompare(a))
+          .slice(0, 10)
+          .reverse();
+
+        let tableHTML = `
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>PPM</th>
+                <th>Flame</th>
+                <th>Fire Alert</th>
+                <th>Smoke Alert</th>
+              </tr>
+            </thead>
+            <tbody>
+        `;
+
+        const labels = [], ppmVals = [];
+        let count = 1;
+
+        for (const key of batchKeys) {
+          const batch = data[key];
+          for (let i = 1; i <= 10; i++) {
+            if (!batch[i]) continue;
+
+            const adc = batch[i].adc ?? 0;
+            const flame = batch[i].flame ?? 0;
+
+            const ppm = adcToPPM(adc);
+            const fireAlert = flame === 1 ? "✅ Detected" : "❌ Not Detected";
+            const smokeAlert = adc > 60 ? "✅ Alert" : "❌";
+
+            labels.push(`#${count}`);
+            ppmVals.push(ppm);
+
+            tableHTML += `
+              <tr>
+                <td>${count}</td>
+                <td>${ppm}</td>
+                <td>${flame}</td>
+                <td>${fireAlert}</td>
+                <td>${smokeAlert}</td>
+              </tr>
+            `;
+            count++;
+          }
+        }
+
+        tableHTML += "</tbody></table>";
+        container.innerHTML = tableHTML;
+
+        if (ppmChart) {
+          ppmChart.data.labels = labels;
+          ppmChart.data.datasets[0].data = ppmVals;
+          ppmChart.update();
+        } else {
+          ppmChart = new Chart(ppmCtx, {
+            type: 'line',
+            data: {
+              labels,
+              datasets: [{
+                label: 'Smoke Level (PPM)',
+                data: ppmVals,
+                borderColor: 'orange',
+                backgroundColor: 'rgba(255, 165, 0, 0.2)',
+                fill: true,
+                tension: 0.3
+              }]
+            },
+            options: {
+              responsive: true,
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  title: { display: true, text: 'PPM' }
+                },
+                x: {
+                  title: { display: true, text: 'Last Readings' }
+                }
+              }
+            }
+          });
+        }
+
+      } catch (err) {
+        console.error(err);
+        container.textContent = "❌ Error loading data: " + err;
+      }
+    }
+
+    loadData();
+    setInterval(loadData, 10000); // Refresh every 10 seconds
+  </script>
+</body>
+</html>

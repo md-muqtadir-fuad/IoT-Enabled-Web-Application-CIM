@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Group B12: Smart Smoke & Light Monitoring</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+ <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+  <h1>Group B12</h1>
+  <h2>Smart Smoke & Light Monitoring Using IoT</h2>
+
+  <section>
+    <strong>Group Members:</strong>
+    <ul>
+      <li>2008063</li>
+      <li>2008068</li>
+      <li>2008070</li>
+      <li>2008112</li>
+      <li>2008113</li>
+    </ul>
+  </section>
+
+  <section>
+    <strong>Problem Statement:</strong>
+    <p>
+      Conventional monitoring of smoke and light in environments such as storage units or workspaces lacks real-time feedback and cloud-based alerting. This may lead to delayed responses to fire, smoke, or abnormal darkness, risking safety and asset loss. A smart IoT-based monitoring system can solve these issues.
+    </p>
+  </section>
+
+  <section>
+    <strong>Devices & Tasks:</strong>
+    <table>
+      <tr>
+        <th>Device / Sensor</th>
+        <th>Task / Function</th>
+      </tr>
+      <tr>
+        <td>MQ135 Smoke/Gas Sensor</td>
+        <td>Detects smoke and gas concentration (in PPM)</td>
+      </tr>
+      <tr>
+        <td>LDR (Light Dependent Resistor)</td>
+        <td>Measures ambient light intensity</td>
+      </tr>
+      <tr>
+        <td>Active Buzzer</td>
+        <td>Audible alarm on smoke detection</td>
+      </tr>
+      <tr>
+        <td>Arduino Uno</td>
+        <td>Reads sensors, triggers buzzer, sends data</td>
+      </tr>
+      <tr>
+        <td>ESP32</td>
+        <td>Sends real-time sensor data to Firebase</td>
+      </tr>
+    </table>
+  </section>
+
+  <section>
+    <strong>Project Description:</strong>
+    <p>
+      The system uses an MQ135 smoke sensor and LDR to constantly monitor smoke levels (in PPM) and light. When smoke crosses a set threshold, a buzzer sounds to alert people locally. All sensor readings are sent in real time to a Firebase cloud database via an ESP32. 
+      <br>
+      A dashboard displays the last 10 readings, plots trends for both sensors, and helps monitor environmental status from anywhere. This early warning and monitoring is ideal for home, industry, or storage applications.
+    </p>
+  </section>
+
+  <section>
+    <strong>Poster:</strong>
+    <p>
+      <img src="../poster/B12.jpg" alt="Group B12 Poster" style="max-width:100%;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);" />
+    </p>
+  </section>
+
+  <section>
+    <strong>Video Demonstration:</strong>
+    <center>
+      <iframe width="560" height="315" src="https://www.youtube.com/embed/BkAYxq9j8RU" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+    </center>
+  </section>
+
+  <section>
+    <strong>Sensor Data Visualization:</strong><br>
+    <div id="tableContainer">Loading data...</div>
+    <canvas id="chartMQ135" height="200"></canvas>
+    <canvas id="chartLDR" height="200"></canvas>
+  </section>
+
+  <section>
+    <strong>Arduino Code:</strong>
+    <p><b>Gas Sensor (MQ135 + Buzzer):</b></p>
+    <pre>
+const int smokeSensorPin = A0; // Analog pin connected to smoke sensor
+const int buzzerPin = 8; // Digital pin connected to buzzer
+const int threshold = 165; // Threshold ADC value
+
+void setup() {
+  Serial.begin(9600); // Start Serial communication
+  pinMode(smokeSensorPin, INPUT);
+  pinMode(buzzerPin, OUTPUT);
+}
+
+void loop() {
+  int smokeValue = analogRead(smokeSensorPin); // Read from MQ sensor
+  Serial.print("Smoke ADC Value: ");
+  Serial.println(smokeValue); // Display the value in Serial Monitor
+
+  if (smokeValue > threshold) {
+    digitalWrite(buzzerPin, HIGH); // Turn buzzer ON
+  } else {
+    digitalWrite(buzzerPin, LOW); // Turn buzzer OFF
+  }
+
+  delay(500); // Optional: slight delay
+}
+    </pre>
+    <p><b>Light Sensor (LDR):</b></p>
+    <pre>
+const int ldrPin = A1; // LDR connected to A1
+
+void setup() {
+  Serial.begin(9600);
+  pinMode(ldrPin, INPUT);
+}
+
+void loop() {
+  int lightValue = analogRead(ldrPin); // Read LDR analog value
+
+  Serial.print("LDR Light Value: ");
+  Serial.println(lightValue);
+
+  delay(1000); // Read every second
+}
+    </pre>
+  </section>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
+    import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyB5kIjUA8KkfDWejmzC3cau4K6PeAdBJKg",
+      authDomain: "suiiiiiiiiiiii.firebaseapp.com",
+      databaseURL: "https://suiiiiiiiiiiii-default-rtdb.firebaseio.com",
+      projectId: "suiiiiiiiiiiii",
+      storageBucket: "suiiiiiiiiiiii.appspot.com",
+      messagingSenderId: "409324367563",
+      appId: "1:409324367563:web:eea6fc7ddc059745b8b54e"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const dataRef = ref(db, "shajibnew");
+
+    function adcToPPM(adc) {
+      return Math.round(adc * 39.4);
+    }
+
+    const tableContainer = document.getElementById("tableContainer");
+    let mq135Chart, ldrChart;
+
+    async function fetchAndRender() {
+      try {
+        tableContainer.textContent = "Loading...";
+
+        const snapshot = await get(dataRef);
+        if (!snapshot.exists()) {
+          tableContainer.textContent = "No data found.";
+          return;
+        }
+
+        const data = snapshot.val();
+        const keys = Object.keys(data)
+          .sort((a, b) => b.localeCompare(a))
+          .slice(0, 10)
+          .reverse();
+
+        let tableHTML = `
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Smoke (PPM)</th>
+                <th>LDR Value</th>
+                <th>Timestamp</th>
+              </tr>
+            </thead>
+            <tbody>
+        `;
+
+        const labels = [], mq135Data = [], ldrData = [];
+        let count = 1;
+
+        for (const key of keys) {
+          const entry = data[key];
+          const adc = entry.mq135 ?? 0;
+          const ldr = entry.ldr ?? 0;
+          const ppm = adcToPPM(adc);
+          const timestamp = entry.timestamp ?? key;
+
+          labels.push(count.toString());
+          mq135Data.push(ppm);
+          ldrData.push(ldr);
+
+          tableHTML += `
+            <tr>
+              <td>${count}</td>
+              <td>${ppm}</td>
+              <td>${ldr}</td>
+              <td>${timestamp.replace(/_/g, ':')}</td>
+            </tr>
+          `;
+          count++;
+        }
+
+        tableHTML += "</tbody></table>";
+        tableContainer.innerHTML = tableHTML;
+
+        if (mq135Chart) mq135Chart.destroy();
+        if (ldrChart) ldrChart.destroy();
+
+        const ctx1 = document.getElementById("chartMQ135").getContext("2d");
+        mq135Chart = new Chart(ctx1, {
+          type: "line",
+          data: {
+            labels,
+            datasets: [{
+              label: "Smoke (PPM)",
+              data: mq135Data,
+              borderColor: "red",
+              backgroundColor: "rgba(255, 0, 0, 0.2)",
+              fill: true,
+              tension: 0.3,
+              pointRadius: 4
+            }]
+          },
+          options: {
+            responsive: true,
+            scales: {
+              y: { beginAtZero: true, title: { display: true, text: "Smoke (PPM)" } },
+              x: { title: { display: true, text: "Entries" } }
+            }
+          }
+        });
+
+        const ctx2 = document.getElementById("chartLDR").getContext("2d");
+        ldrChart = new Chart(ctx2, {
+          type: "line",
+          data: {
+            labels,
+            datasets: [{
+              label: "LDR Value",
+              data: ldrData,
+              borderColor: "blue",
+              backgroundColor: "rgba(0, 0, 255, 0.2)",
+              fill: true,
+              tension: 0.3,
+              pointRadius: 4
+            }]
+          },
+          options: {
+            responsive: true,
+            scales: {
+              y: { beginAtZero: true, title: { display: true, text: "LDR Value" } },
+              x: { title: { display: true, text: "Entries" } }
+            }
+          }
+        });
+      } catch (err) {
+        tableContainer.textContent = "Error loading data: " + err.message;
+        console.error(err);
+      }
+    }
+
+    fetchAndRender();
+    setInterval(fetchAndRender, 7000);
+  </script>
+
+</body>
+</html>

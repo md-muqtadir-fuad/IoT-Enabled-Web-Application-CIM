@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Real Time Machine Utilization Tracker (Group B2)</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.0.0"></script>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+    <h1>Group B2</h1>
+    <h2>Real Time Machine Utilization Tracker</h2>
+
+    <section>
+      <strong>Group Members:</strong>
+      <ul>
+        <li>2008062</li>
+        <li>2008069</li>
+        <li>2008082</li>
+        <li>2008093</li>
+        <li>2008116</li>
+      </ul>
+    </section>
+
+    <section>
+      <strong>Problem Statement:</strong>
+      <p>
+        An IoT-based Predictive Maintenance system in manufacturing, realized by monitoring certain parameters with the help of sensors and identifying the preconditions of probable breakdowns of any machine. The system alerts operators using actuators to take necessary action before failure occurs.
+      </p>
+    </section>
+
+    <section>
+      <strong>Devices & Tasks:</strong>
+      <table>
+        <tr>
+          <th>Device / Component</th>
+          <th>Quantity</th>
+          <th>Task / Function</th>
+        </tr>
+        <tr>
+          <td>ACS712 / INA219 Current Sensor</td>
+          <td>1</td>
+          <td>Measures current drawn by machine to detect usage and abnormal loads</td>
+        </tr>
+        <tr>
+          <td>SW-420 / ADXL345 Vibration Sensor</td>
+          <td>1</td>
+          <td>Detects abnormal vibration patterns indicating potential failures</td>
+        </tr>
+        <tr>
+          <td>Active Buzzer Module (5V)</td>
+          <td>1</td>
+          <td>Alerts operator on abnormal current/vibration</td>
+        </tr>
+        <tr>
+          <td>LED Indicator</td>
+          <td>1</td>
+          <td>Status/alert indication</td>
+        </tr>
+        <tr>
+          <td>ESP8266</td>
+          <td>1</td>
+          <td>WiFi module for uploading data to server</td>
+        </tr>
+        <tr>
+          <td>Jumper Wires</td>
+          <td>Multiple</td>
+          <td>Electrical connections between components</td>
+        </tr>
+      </table>
+    </section>
+
+    <section>
+      <strong>Project Description:</strong>
+      <ol>
+        <li>Current and vibration sensors are attached to machine under test.</li>
+        <li>ESP8266 reads sensor data and uploads to a server for real-time monitoring.</li>
+        <li>Abnormal sensor readings trigger buzzer and LED alert on site.</li>
+        <li>Operators can view real-time utilization and fault status from web dashboard.</li>
+        <li>Helps in planning maintenance and reducing downtime.</li>
+      </ol>
+    </section>
+
+    <section>
+      <strong>Poster:</strong>
+      <p>
+        <a href="#" target="_blank">Download Project Poster</a>
+      </p>
+      <p>
+        <img src="../poster/B2.jpg" alt="Project Poster" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+      </p>
+    </section>
+
+    <section>
+      <strong>ESP8266 Code (Current Monitoring):</strong>
+      <pre>
+#include &lt;ESP8266WiFi.h&gt;
+#include &lt;ESP8266HTTPClient.h&gt;
+#include &lt;ArduinoJson.h&gt;
+
+// WiFi Config
+const char* ssid = "Galaxy A05s";
+const char* password = "930078830";
+
+// Server Config
+const char* serverHost = "ipe20-buet.top";
+const char* endpoint = "/get_data.php";
+const char* groupName = "groupB2";
+const char* sensorName = "ACS";  // Updated sensor name
+const char* passcode = "passB2";
+
+// ACS712 Pin
+#define CURRENT_SENSOR_PIN A0
+
+WiFiClient client;
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(CURRENT_SENSOR_PIN, INPUT);
+
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) delay(300);
+  Serial.println("WiFi connected.");
+}
+
+float measureCurrent() {
+  int adcValue = analogRead(CURRENT_SENSOR_PIN);
+  float voltage = (adcValue / 1023.0) * 3.3;  // For 3.3V ESP8266
+  float current = (voltage - 1.65) / 0.100;   // ACS712-20A calibration
+  current = abs(current);
+
+  Serial.print("Current: ");
+  Serial.print(current, 2);
+  Serial.println(" A");
+  return current;
+}
+
+void sendToServer(float current) {
+  if (WiFi.status() != WL_CONNECTED) return;
+
+  HTTPClient http;
+  String url = String("http://") + serverHost + endpoint +
+               "?g=" + groupName +
+               "&sn=" + sensorName +
+               "&sd=" + String(current, 2) +
+               "&p=" + passcode +
+               "&format=json";
+
+  http.begin(client, url);
+  int httpCode = http.GET();
+
+  if (httpCode > 0) {
+    String response = http.getString();
+    Serial.println("Server Response: " + response);
+  }
+  http.end();
+}
+
+void loop() {
+  float current = measureCurrent();
+  if (current > 0.1 && current < 20.0) {
+    sendToServer(current);
+  } else {
+    Serial.println("Invalid current. Skipping send.");
+  }
+  delay(5000);
+}
+      </pre>
+    </section>
+
+    <section>
+        <strong>Video Demonstration</strong>
+        <center>
+          <iframe width="560" height="315" src="" title="YouTube video player" frameborder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+        </center>
+    </section>
+
+    <section>
+      <strong>Sensor Data Visualization:</strong><br>
+      <label for="sensor_name">Select Sensor:</label>
+      <select id="sensor_name" onchange="loadGraph()">
+        <option value="">Loading sensors...</option>
+      </select>
+      <canvas id="myChart" width="600" height="300"></canvas>
+    </section>
+
+<script>
+  let chart = null;
+  const groupName = 'groupB2';
+  async function loadSensors() {
+    try {
+      const response = await fetch('show_data.php?mode=names&group=' + groupName);
+      if (!response.ok) throw new Error('Network response was not ok');
+      const sensors = await response.json();
+      let dropdown = document.getElementById('sensor_name');
+      dropdown.innerHTML = "";
+      if (sensors.length === 0) {
+        dropdown.innerHTML = '<option value="">No sensors found</option>';
+        return;
+      }
+      sensors.forEach(sensor => {
+        let opt = document.createElement('option');
+        opt.value = sensor;
+        opt.textContent = sensor;
+        dropdown.appendChild(opt);
+      });
+      dropdown.value = sensors[0];
+      loadGraph();
+    } catch (error) {
+      alert('Failed to load sensor list.');
+    }
+  }
+
+  async function loadGraph() {
+    const sensorName = document.getElementById('sensor_name').value;
+    if (!sensorName) return;
+    try {
+      const response = await fetch(`show_data.php?mode=data&group=${groupName}&sensor_name=${encodeURIComponent(sensorName)}`);
+      if (!response.ok) throw new Error('Network response was not ok');
+      const data = await response.json();
+      if (data.error) {
+        alert(data.error);
+        return;
+      }
+      const ctx = document.getElementById('myChart').getContext('2d');
+      if (chart) chart.destroy();
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: data.timestamps,
+          datasets: [{
+            label: `${sensorName} Data`,
+            data: data.values,
+            borderColor: 'rgba(75, 192, 192, 1)',
+            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+            fill: true,
+            tension: 0.3
+          }]
+        },
+        options: {
+          scales: {
+            x: { title: { display: true, text: 'Timestamp' } },
+            y: { title: { display: true, text: 'Sensor Data' }, beginAtZero: true }
+          }
+        }
+      });
+    } catch (error) {
+      alert('Failed to load sensor data.');
+    }
+  }
+  loadSensors();
+</script>
+</body>
+</html>

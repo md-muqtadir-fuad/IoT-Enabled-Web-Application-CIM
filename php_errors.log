@@ -1,0 +1,7 @@
+[09-Jul-2025 14:56:35 UTC] PHP Notice:  ob_clean(): Failed to delete buffer. No buffer to delete in /home/ipebuett/public_html/get_data.php on line 115
+[09-Jul-2025 14:56:35 UTC] PHP Warning:  Cannot modify header information - headers already sent by (output started at /home/ipebuett/public_html/get_data.php:1) in /home/ipebuett/public_html/get_data.php on line 116
+[09-Jul-2025 15:00:22 UTC] PHP Notice:  ob_clean(): Failed to delete buffer. No buffer to delete in /home/ipebuett/public_html/get_data.php on line 94
+[09-Jul-2025 15:00:22 UTC] PHP Warning:  Cannot modify header information - headers already sent by (output started at /home/ipebuett/public_html/get_data.php:1) in /home/ipebuett/public_html/get_data.php on line 95
+[09-Jul-2025 15:06:09 UTC] PHP Notice:  ob_clean(): Failed to delete buffer. No buffer to delete in /home/ipebuett/public_html/get_data.php on line 94
+[09-Jul-2025 15:06:09 UTC] PHP Warning:  Cannot modify header information - headers already sent by (output started at /home/ipebuett/public_html/get_data.php:1) in /home/ipebuett/public_html/get_data.php on line 95
+[09-Jul-2025 15:06:09 UTC] Invalid ID or password for delete: ID=15, Group=groupA1

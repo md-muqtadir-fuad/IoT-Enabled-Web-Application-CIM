@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>IoT-Based Monitoring & Control (Group A9)</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.0.0"></script>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+    <h1>Group A9</h1>
+    <h2>Intelligent IoT-Based Monitoring and Control of Clearance and Ambient Conditions in PCB Manufacturing Industries</h2>
+
+    <section>
+      <strong>Group Members:</strong>
+      <ul>
+        <li>2008004</li>
+        <li>2008006</li>
+        <li>2008041</li>
+        <li>2008045</li>
+        <li>2008046</li>
+      </ul>
+    </section>
+
+    <section>
+      <strong>Problem Statement:</strong>
+      <p>
+        Maintaining proper clearance and ambient conditions is crucial in PCB manufacturing to ensure quality and prevent process failures. Manual control methods lack precision and real-time responsiveness.
+      </p>
+    </section>
+
+    <section>
+      <strong>Devices & Tasks:</strong>
+      <table>
+        <tr>
+          <th>Device / Component</th>
+          <th>Quantity</th>
+          <th>Task / Function</th>
+        </tr>
+        <tr>
+          <td>HC-SR04 Ultrasonic Sensor</td>
+          <td>1</td>
+          <td>Detects clearance/object distance</td>
+        </tr>
+        <tr>
+          <td>DHT11 Sensor</td>
+          <td>1</td>
+          <td>Measures temperature and humidity</td>
+        </tr>
+        <tr>
+          <td>ESP-01S (ESP8266)</td>
+          <td>2</td>
+          <td>One for data upload, one for automated actuation</td>
+        </tr>
+        <tr>
+          <td>5V DC Cooling Fan</td>
+          <td>1</td>
+          <td>Actuator for cooling, triggered by ESP</td>
+        </tr>
+        <tr>
+          <td>Transistor Switch Circuit</td>
+          <td>1</td>
+          <td>Controls fan power from ESP output</td>
+        </tr>
+        <tr>
+          <td>LED</td>
+          <td>1</td>
+          <td>Indicates distance threshold (via Arduino)</td>
+        </tr>
+        <tr>
+          <td>Jumper Wires</td>
+          <td>Multiple</td>
+          <td>Electrical connections</td>
+        </tr>
+      </table>
+    </section>
+
+    <section>
+      <strong>Project Description:</strong>
+      <ol>
+        <li>HC-SR04 sensor (via Arduino) detects clearance; DHT11 on ESP monitors temperature & humidity.</li>
+        <li>Arduino sends clearance data via UART to first ESP-01S, which uploads data to server.</li>
+        <li>Second ESP-01S reads latest environmental data and controls the 5V fan (via transistor switch) based on thresholds: Temp ≥ 29°C, Humidity ≥ 80%, or clearance below threshold.</li>
+        <li>System enables fully automated, responsive control and remote monitoring in PCB manufacturing, ensuring optimal conditions for quality production.</li>
+      </ol>
+    </section>
+
+    <section>
+      <strong>Poster:</strong>
+      <p>
+        <a href="#" target="_blank">Download Project Poster</a>
+      </p>
+      <p>
+        <img src="../poster/A9.jpg" alt="Project Poster" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+      </p>
+    </section>
+
+    <section>
+      <strong>Arduino Code (Clearance Sensor):</strong>
+      <pre>
+const int trigPin = 9;
+const int echoPin = 8;
+const int ledPin = 7;
+
+void setup() {
+  Serial.begin(9600);  // Communicates with ESP-01S
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+  pinMode(ledPin, OUTPUT);
+  digitalWrite(ledPin, LOW);  // LED OFF initially
+}
+
+void loop() {
+  // Trigger pulse
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+
+  long duration = pulseIn(echoPin, HIGH);
+  float distance_cm = duration * 0.0343 / 2;
+
+  Serial.println(distance_cm); // Send to ESP
+
+  if (distance_cm > 5.0) {
+    digitalWrite(ledPin, HIGH);  // Turn ON LED
+  } else {
+    digitalWrite(ledPin, LOW);   // Turn OFF LED
+  }
+
+  delay(1000);
+}
+      </pre>
+    </section>
+
+    <section>
+      <strong>ESP-01S Code (Sender, with Arduino):</strong>
+      <pre>
+#include &lt;ESP8266WiFi.h&gt;
+#include &lt;ESP8266HTTPClient.h&gt;
+#include &lt;ArduinoJson.h&gt;
+
+const char* ssid     = "POCO X3";
+const char* password = "4o4notfound";
+
+const char* serverHost = "ipe20-buet.top";
+const char* endpoint   = "/get_data.php";
+const char* groupName  = "groupA9";
+const char* passcode   = "passA9";
+
+void setup() {
+  Serial.begin(9600);
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) { delay(300); }
+}
+
+void sendToServer(float distance) {
+  if (WiFi.status() != WL_CONNECTED) return;
+  WiFiClient client;
+  HTTPClient http;
+  String url = String("http://") + serverHost + endpoint +
+               "?g=" + groupName +
+               "&sn=clearance_sensor" +
+               "&sd=" + String(distance, 2) +
+               "&p=" + passcode +
+               "&format=json";
+  http.begin(client, url);
+  int httpCode = http.GET();
+  http.end();
+}
+
+void loop() {
+  if (Serial.available()) {
+    String raw = Serial.readStringUntil('\n');
+    float distance = raw.toFloat();
+    if (distance > 0 && distance < 500) {
+      sendToServer(distance);
+    }
+  }
+  delay(5000);
+}
+      </pre>
+    </section>
+
+    <section>
+      <strong>ESP-01S Code (Receiver, with DHT & Fan):</strong>
+      <pre>
+#include &lt;ESP8266WiFi.h&gt;
+#include &lt;ESP8266HTTPClient.h&gt;
+#include &lt;DHT.h&gt;
+#include &lt;ArduinoJson.h&gt;
+
+const char* ssid     = "POCO X3";
+const char* password = "4o4notfound";
+
+const char* serverHost = "ipe20-buet.top";
+const char* endpoint   = "/get_data.php";
+const char* groupName  = "groupA9";
+const char* passcode   = "passA9";
+
+#define DHTPIN 2
+#define DHTTYPE DHT11
+#define FAN_PIN 0
+
+DHT dht(DHTPIN, DHTTYPE);
+
+float lastTemp = 0.0;
+float lastHum = 0.0;
+
+void setup() {
+  Serial.begin(9600);
+  dht.begin();
+  pinMode(FAN_PIN, OUTPUT);
+  digitalWrite(FAN_PIN, LOW);
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) { delay(300); }
+}
+
+void sendToServer(const char* sensorName, float value) {
+  if (WiFi.status() != WL_CONNECTED) return;
+  WiFiClient client;
+  HTTPClient http;
+  String url = String("http://") + serverHost + endpoint +
+               "?g=" + groupName +
+               "&sn=" + sensorName +
+               "&sd=" + String(value, 2) +
+               "&p=" + passcode +
+               "&format=json";
+  http.begin(client, url);
+  int httpCode = http.GET();
+  http.end();
+}
+
+void loop() {
+  float temp = dht.readTemperature();
+  float hum = dht.readHumidity();
+  if (!isnan(temp) && !isnan(hum)) {
+    lastTemp = temp; lastHum = hum;
+    sendToServer("temperature_sensor", temp);
+    sendToServer("humidity_sensor", hum);
+    if ((lastTemp >= 29.0) || (lastHum >= 80.0)) {
+      digitalWrite(FAN_PIN, HIGH);
+    } else {
+      digitalWrite(FAN_PIN, LOW);
+    }
+  }
+  delay(5000);
+}
+      </pre>
+    </section>
+
+    <section>
+        <strong>Video Demonstration</strong>
+        <center>
+          <iframe width="560" height="315" src="https://www.youtube.com/embed/uBvX-qIh-XM" title="YouTube video player" frameborder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+        </center>
+    </section>
+
+</body>
+</html>

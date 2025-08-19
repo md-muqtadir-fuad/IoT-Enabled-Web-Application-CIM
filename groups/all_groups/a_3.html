@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Smart IoT-Based Tannery Waste & Odor Monitoring (Group B5)</title>
+  <link rel="stylesheet" href="../style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <h1>Group A3</h1>
+  <h2>SMART IOT BASED SYSTEM FOR TANNERY WASTE & ODOR LEVEL MONITORING & CONTROLLING</h2>
+
+  <section>
+    <strong>Group Members:</strong>
+    <ul>
+      <li>2008007 - Debduti Sen</li>
+      <li>2008033 - Shafia Tasnim Samonti</li>
+      <li>2008035 - Jarin Akber</li>
+      <li>2008038 - Shatabdi Sen Prapti</li>
+      <li>2008040 - Musarrat Zarin</li>
+    </ul>
+  </section>
+
+  <section>
+    <strong>Abstract:</strong>
+    <p>
+      This project presents a smart IoT-based system for  real-time monitoring and control of tannery waste and odor levels . Using ultrasonic and gas sensors, it detects waste overflow and harmful emissions, while an automated, touchless lid mechanism ensures hygiene. Powered by Arduino and cloud integration, the system delivers alerts, improves safety, and promotes sustainable waste management in industrial zones.
+    </p>
+  </section>
+
+  <section>
+    <strong>Devices & Tasks:</strong>
+    <table>
+      <tr>
+        <th>Device / Component</th>
+        <th>Task / Function</th>
+      </tr>
+      <tr>
+        <td>HC-SR04 Ultrasonic Sonar Sensor</td>
+        <td>Detects waste overflow, triggers alerts, enables touchless operation</td>
+      </tr>
+      <tr>
+        <td>MQ2 Gas Sensor</td>
+        <td>Detects harmful chemical fumes or odors; monitors air quality (PPM)</td>
+      </tr>
+      <tr>
+        <td>Servo Motor</td>
+        <td>Automatically opens/closes the lid for contactless disposal</td>
+      </tr>
+      <tr>
+        <td>Buzzer</td>
+        <td>Sounds warning if hazardous gas threshold is exceeded</td>
+      </tr>
+      <tr>
+        <td>Arduino UNO</td>
+        <td>Main controller; reads sensors, operates actuators, sends data</td>
+      </tr>
+      <tr>
+        <td>ESP8266/IoT WiFi Module</td>
+        <td>Uploads sensor readings and alerts to cloud database/mobile app</td>
+      </tr>
+    </table>
+  </section>
+
+  <section>
+    <strong>Project Description:</strong>
+    <ol>
+      <li> Automatic solid waste detection and touchless disposal : Ultrasonic sensor monitors fill level, and a servo-operated lid allows hygienic, contactless waste disposal.</li>
+      <li> Odor and hazardous gas monitoring : MQ2 sensor samples the environment; if dangerous levels are detected, buzzer activates for alert.</li>
+      <li> Real-time cloud integration : Arduino+ESP uploads data to a Firebase-powered dashboard, enabling managers to track fill levels, gas status, and receive timely alerts via mobile app.</li>
+      <li> System improves safety, hygiene, and efficiency  in tannery or chemical waste-heavy industries.</li>
+    </ol>
+  </section>
+
+  <section>
+    <strong>Methodology:</strong>
+    <ul>
+      <li>Continuous fill level measurement with ultrasonic sensor.</li>
+      <li>Continuous gas/odor sampling with MQ2 sensor.</li>
+      <li>Touchless bin access via automated servo lid.</li>
+      <li>Immediate buzzer warning if dangerous gas levels detected.</li>
+      <li>All sensor readings uploaded live to Firebase/cloud.</li>
+      <li>Mobile app provides real-time alerting and remote monitoring.</li>
+    </ul>
+  </section>
+
+  <section>
+    <strong>Implementation & Future Scopes:</strong>
+    <ul>
+      <li>Can be expanded to other waste-heavy industries (food, chemical, etc.)</li>
+      <li>Mobile app integration for real-time alerts and monitoring</li>
+      <li>AI-based prediction for early warnings and automation</li>
+    </ul>
+  </section>
+
+   <section>
+      <strong>Poster:</strong>
+      <p>
+        <a href="../poster/A3.jpg" target="_blank">Download Project Poster</a>
+      </p>
+      <p>
+        <img src="../poster/A3.jpg" alt="Project Poster" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+      </p>
+    </section>
+
+  <section>
+    <strong>Video Demonstration</strong>
+    <center>
+      <iframe width="380" height="680"
+        src="https://www.youtube.com/embed/OsMtZYBb_HU"
+        title="Multi-Parameter Silo Monitoring Demo"
+        frameborder="0"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        referrerpolicy="strict-origin-when-cross-origin"
+        allowfullscreen>
+      </iframe>
+    </center>
+  </section>
+
+  <section>
+    <strong>Firebase-Powered Dashboard (Live Data Example):</strong>
+    <div id="tableContainer">Loading data...</div>
+    <canvas id="chartDistance1" height="200"></canvas>
+    <canvas id="chartDistance2" height="200"></canvas>
+    <canvas id="chartPPM" height="200"></canvas>
+  </section>
+
+  <section>
+    <strong>Arduino Code:</strong>
+    <pre>
+#include &lt;Servo.h&gt;
+// Pin definitions
+const int trig1 = 6;
+const int echo1 = 7;
+const int trig2 = 9;
+const int echo2 = 10;
+const int servoPin = 11;
+const int mqPin = A0;
+const int buzzerPin = 3;
+Servo myServo;
+void setup() {
+  Serial.begin(9600);
+  pinMode(trig1, OUTPUT); pinMode(echo1, INPUT);
+  pinMode(trig2, OUTPUT); pinMode(echo2, INPUT);
+  pinMode(mqPin, INPUT); pinMode(buzzerPin, OUTPUT);
+  myServo.attach(servoPin);
+  myServo.write(0);
+}
+long readUltrasonicCM(int trigPin, int echoPin) {
+  digitalWrite(trigPin, LOW); delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH); delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+  long duration = pulseIn(echoPin, HIGH, 30000);
+  long cm = duration * 0.034 / 2;
+  return cm;
+}
+void loop() {
+  long distance1 = readUltrasonicCM(trig1, echo1);
+  long distance2 = readUltrasonicCM(trig2, echo2);
+  int mqValue = analogRead(mqPin);
+  if (distance2 > 0 && distance2 <= 10) {
+    myServo.write(90);
+  } else {
+    myServo.write(0);
+  }
+  if (mqValue > 200) {
+    digitalWrite(buzzerPin, HIGH);
+  } else {
+    digitalWrite(buzzerPin, LOW);
+  }
+  Serial.print(distance1); Serial.print(",");
+  Serial.print(distance2); Serial.print(",");
+  Serial.println(mqValue);
+  delay(1000);
+}
+    </pre>
+  </section>
+
+  <section>
+    <strong>Sensor Data Visualization (Live Dashboard):</strong><br>
+    <em>Below: Last 10 entries, auto-refreshed from Firebase (see live graphs and table).</em>
+    <br><br>
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
+      import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
+
+      const firebaseConfig = {
+        apiKey: "AIzaSyB5kIjUA8KkfDWejmzC3cau4K6PeAdBJKg",
+        authDomain: "suiiiiiiiiiiii.firebaseapp.com",
+        databaseURL: "https://suiiiiiiiiiiii-default-rtdb.firebaseio.com",
+        projectId: "suiiiiiiiiiiii",
+        storageBucket: "suiiiiiiiiiiii.appspot.com",
+        messagingSenderId: "409324367563",
+        appId: "1:409324367563:web:eea6fc7ddc059745b8b54e"
+      };
+
+      const app = initializeApp(firebaseConfig);
+      const db = getDatabase(app);
+      const dataRef = ref(db, "mehran");
+
+      function adcToPPM(adc) {
+        return Math.round(adc * 39.4);
+      }
+
+      const tableContainer = document.getElementById("tableContainer");
+      let distance1Chart, distance2Chart, ppmChart;
+
+      async function fetchAndRender() {
+        try {
+          tableContainer.textContent = "Loading...";
+          const snapshot = await get(dataRef);
+          if (!snapshot.exists()) {
+            tableContainer.textContent = "No data found.";
+            return;
+          }
+          const data = snapshot.val();
+
+          const keys = Object.keys(data)
+            .sort((a, b) => b.localeCompare(a))
+            .slice(0, 10)
+            .reverse();
+
+          let tableHTML = `
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Distance 1 (cm)</th>
+                  <th>Distance 2 (cm)</th>
+                  <th>Smoke (PPM)</th>
+                  <th>Timestamp</th>
+                </tr>
+              </thead>
+              <tbody>
+          `;
+
+          const labels = [];
+          const distance1Data = [];
+          const distance2Data = [];
+          const ppmData = [];
+
+          let count = 1;
+          for (const key of keys) {
+            const entry = data[key];
+            const d1 = entry.distance1 ?? 0;
+            const d2 = entry.distance2 ?? 0;
+            const adc = entry.adc ?? 0;
+            const ppm = adcToPPM(adc);
+            const timestamp = entry.timestamp ?? key;
+
+            labels.push(count.toString());
+            distance1Data.push(d1);
+            distance2Data.push(d2);
+            ppmData.push(ppm);
+
+            tableHTML += `
+              <tr>
+                <td>${count}</td>
+                <td>${d1}</td>
+                <td>${d2}</td>
+                <td>${ppm}</td>
+                <td>${timestamp.replace(/_/g, ':')}</td>
+              </tr>
+            `;
+            count++;
+          }
+
+          tableHTML += "</tbody></table>";
+          tableContainer.innerHTML = tableHTML;
+
+          if (distance1Chart) distance1Chart.destroy();
+          if (distance2Chart) distance2Chart.destroy();
+          if (ppmChart) ppmChart.destroy();
+
+          const ctxD1 = document.getElementById("chartDistance1").getContext("2d");
+          distance1Chart = new Chart(ctxD1, {
+            type: "line",
+            data: {
+              labels,
+              datasets: [{
+                label: "Distance 1 (cm)",
+                data: distance1Data,
+                borderColor: "blue",
+                backgroundColor: "rgba(0, 0, 255, 0.2)",
+                fill: true,
+                tension: 0.3,
+                pointRadius: 4,
+              }]
+            },
+            options: {
+              responsive: true,
+              scales: {
+                y: { 
+                  beginAtZero: true,
+                  min: 0,
+                  max: 200,
+                  title: { display: true, text: "Distance 1 (cm)" }
+                },
+                x: { title: { display: true, text: "Entries" } }
+              }
+            }
+          });
+
+          const ctxD2 = document.getElementById("chartDistance2").getContext("2d");
+          distance2Chart = new Chart(ctxD2, {
+            type: "line",
+            data: {
+              labels,
+              datasets: [{
+                label: "Distance 2 (cm)",
+                data: distance2Data,
+                borderColor: "green",
+                backgroundColor: "rgba(0, 255, 0, 0.2)",
+                fill: true,
+                tension: 0.3,
+                pointRadius: 4,
+              }]
+            },
+            options: {
+              responsive: true,
+              scales: {
+                y: { 
+                  beginAtZero: true,
+                  min: 0,
+                  max: 200,
+                  title: { display: true, text: "Distance 2 (cm)" }
+                },
+                x: { title: { display: true, text: "Entries" } }
+              }
+            }
+          });
+
+          const ctxPPM = document.getElementById("chartPPM").getContext("2d");
+          ppmChart = new Chart(ctxPPM, {
+            type: "line",
+            data: {
+              labels,
+              datasets: [{
+                label: "Smoke (PPM)",
+                data: ppmData,
+                borderColor: "orange",
+                backgroundColor: "rgba(255, 165, 0, 0.2)",
+                fill: true,
+                tension: 0.3,
+                pointRadius: 4,
+              }]
+            },
+            options: {
+              responsive: true,
+              scales: {
+                y: { beginAtZero: true, title: { display: true, text: "Smoke (PPM)" } },
+                x: { title: { display: true, text: "Entries" } }
+              }
+            }
+          });
+
+        } catch (error) {
+          tableContainer.textContent = "Error loading data: " + error.message;
+          console.error(error);
+        }
+      }
+
+      fetchAndRender();
+      setInterval(fetchAndRender, 7000);
+    </script>
+  </section>
+</body>
+</html>

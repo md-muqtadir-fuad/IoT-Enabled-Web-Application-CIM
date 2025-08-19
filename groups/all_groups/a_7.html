@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Automated Greenhouse Monitoring System (Group A7)</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.0.0"></script>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+    <h1>Group A7</h1>
+    <h2>Automated Greenhouse Monitoring System</h2>
+
+    <section>
+      <strong>Group Members:</strong>
+      <ul>
+        <li>20008017</li>
+        <li>2008024</li>
+        <li>2008029</li>
+        <li>2008030</li>
+        <li>2008036</li>
+      </ul>
+      <p><b>Group Leader:</b> Md. Naimool Islam</p>
+    </section>
+
+    <section>
+      <strong>Problem Statement:</strong>
+      <p>
+        Develop an automated greenhouse system that optimizes watering and lighting. Use sensor data to maintain ideal plant growth conditions with minimal human intervention.
+      </p>
+    </section>
+
+    <section>
+      <strong>Devices & Tasks:</strong>
+      <table>
+        <tr>
+          <th>Device / Component</th>
+          <th>Quantity</th>
+          <th>Task / Function</th>
+        </tr>
+        <tr>
+          <td>Soil Moisture Sensor</td>
+          <td>1</td>
+          <td>Monitors soil moisture level</td>
+        </tr>
+        <tr>
+          <td>DHT11 (Temperature & Humidity Sensor)</td>
+          <td>1</td>
+          <td>Measures temperature and humidity</td>
+        </tr>
+        <tr>
+          <td>LM393 Light Detection Module</td>
+          <td>1</td>
+          <td>Detects ambient light intensity</td>
+        </tr>
+        <tr>
+          <td>Solenoid/Motorized Valve</td>
+          <td>1</td>
+          <td>Controls water flow for irrigation</td>
+        </tr>
+        <tr>
+          <td>LED/Grow Light with Relay</td>
+          <td>1</td>
+          <td>Provides artificial lighting</td>
+        </tr>
+        <tr>
+          <td>ESP8266 Wi-Fi Module</td>
+          <td>2</td>
+          <td>Data transmission & automation</td>
+        </tr>
+        <tr>
+          <td>Jumper Wires, Breadboard</td>
+          <td>Multiple</td>
+          <td>Electrical connections</td>
+        </tr>
+      </table>
+    </section>
+
+    <section>
+      <strong>Project Description:</strong>
+      <ol>
+        <li>System monitors soil moisture, temperature, humidity, and ambient light in real time.</li>
+        <li>Soil moisture sensor controls water flow by actuating a valve via relay.</li>
+        <li>Light sensor controls artificial lights depending on ambient brightness.</li>
+        <li>ESP8266 modules handle data logging, remote monitoring, and cloud upload.</li>
+        <li>Automation ensures water conservation and optimal plant growth conditions.</li>
+      </ol>
+    </section>
+
+    <section>
+      <strong>Poster:</strong>
+      <p>
+        <a href="../poster/A7.jpg" target="_blank">Download Project Poster</a>
+      </p>
+      <p>
+        <img src="../poster/A7.jpg" alt="Project Poster" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+      </p>
+    </section>
+
+    <section>
+      <strong>Light Level Control Code (ESP8266):</strong>
+      <pre>
+#include &lt;ESP8266WiFi.h&gt;
+#include &lt;ESP8266HTTPClient.h&gt;
+// === Pin Assignments ===
+#define LIGHT_SENSOR 0  // GPIO0
+#define LED_PIN 2       // GPIO2
+const char* ssid = "ABCD";
+const char* password = "12345678";
+const char* baseUrl = "http://ipe20-buet.top/get_data.php";
+WiFiClient client;
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+  pinMode(LIGHT_SENSOR, INPUT);
+  pinMode(LED_PIN, OUTPUT);
+  connectToWiFi();
+  Serial.println("System Ready.");
+}
+void connectToWiFi() {
+  Serial.println("Connecting to Wi-Fi...");
+  WiFi.begin(ssid, password);
+  unsigned long startAttemptTime = millis();
+  while (WiFi.status() != WL_CONNECTED &amp;&amp; millis() - startAttemptTime &lt; 20000) {
+    Serial.print(".");
+    delay(500);
+  }
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\nWi-Fi Connected.");
+    Serial.print("IP Address: ");
+    Serial.println(WiFi.localIP());
+  } else {
+    Serial.println("\nWi-Fi connection failed.");
+  }
+}
+void sendLightStatus(int status) {
+  if (WiFi.status() != WL_CONNECTED) {
+    connectToWiFi();
+    if (WiFi.status() != WL_CONNECTED) {
+      Serial.println("Wi-Fi unavailable. Skipping data send.");
+      return;
+    }
+  }
+  String url = String(baseUrl) + "?g=groupA7&sn=LightSensor&sd=" + String(status) + "&p=passA1&format=json";
+  HTTPClient http;
+  http.begin(client, url);
+  int httpCode = http.GET();
+  if (httpCode &gt; 0) {
+    String response = http.getString();
+    Serial.println("Server response: " + response);
+  } else {
+    Serial.print("HTTP error: ");
+    Serial.println(http.errorToString(httpCode));
+  }
+  http.end();
+}
+void loop() {
+  int light = digitalRead(LIGHT_SENSOR);
+  if (light == HIGH) {
+    digitalWrite(LED_PIN, HIGH);  // It's dark
+    Serial.println("Light: Dark → Sending 0");
+    sendLightStatus(0);
+  } else {
+    digitalWrite(LED_PIN, LOW);   // It's bright
+    Serial.println("Light: Bright → Sending 1");
+    sendLightStatus(1);
+  }
+  delay(4000);
+}
+      </pre>
+      <strong>Moisture Level Control Code (ESP8266):</strong>
+      <pre>
+#include &lt;ESP8266WiFi.h&gt;
+#include &lt;ESP8266HTTPClient.h&gt;
+#define MOISTURE_SENSOR_PIN 2
+#define RELAY_PIN 0
+const char* ssid = "ABCD";
+const char* password = "12345678";
+const char* baseUrl = "http://ipe20-buet.top/get_data.php";
+WiFiClient client;
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+  pinMode(MOISTURE_SENSOR_PIN, INPUT);
+  pinMode(RELAY_PIN, OUTPUT);
+  digitalWrite(RELAY_PIN, LOW);
+  connectToWiFi();
+  Serial.println("System Ready.");
+}
+void connectToWiFi() {
+  Serial.println("Connecting to Wi-Fi...");
+  WiFi.begin(ssid, password);
+  unsigned long startAttemptTime = millis();
+  while (WiFi.status() != WL_CONNECTED &amp;&amp; millis() - startAttemptTime &lt; 20000) {
+    Serial.print(".");
+    delay(500);
+  }
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\nWi-Fi Connected.");
+    Serial.print("IP Address: ");
+    Serial.println(WiFi.localIP());
+  } else {
+    Serial.println("\nWi-Fi connection failed.");
+  }
+}
+void sendMoistureStatus(int status) {
+  if (WiFi.status() != WL_CONNECTED) {
+    connectToWiFi();
+    if (WiFi.status() != WL_CONNECTED) {
+      Serial.println("Wi-Fi unavailable. Skipping data send.");
+      return;
+    }
+  }
+  String url = String(baseUrl) + "?g=groupA7&sn=MoistureSensor&sd=" + String(status) + "&p=passA1&format=json";
+  HTTPClient http;
+  http.begin(client, url);
+  int httpCode = http.GET();
+  if (httpCode &gt; 0) {
+    String response = http.getString();
+    Serial.println("Server response: " + response);
+  } else {
+    Serial.print("HTTP error: ");
+    Serial.println(http.errorToString(httpCode));
+  }
+  http.end();
+}
+void loop() {
+  int moisture = digitalRead(MOISTURE_SENSOR_PIN);
+  if (moisture == HIGH) {
+    digitalWrite(RELAY_PIN, HIGH);  // Soil is dry → open solenoid
+    Serial.println("Soil is Dry → Sending 1");
+    sendMoistureStatus(1);
+  } else {
+    digitalWrite(RELAY_PIN, LOW);   // Soil is wet → close solenoid
+    Serial.println("Soil is Wet → Sending 0");
+    sendMoistureStatus(0);
+  }
+  delay(4000);
+}
+      </pre>
+    </section>
+
+    <section>
+        <strong>Video Demonstration</strong>
+        <center>
+          <iframe width="560" height="315" src="https://www.youtube.com/embed/5rtoAlRRS9w" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+        </center>
+    </section>
+
+    <section>
+      <strong>Sensor Data Visualization:</strong><br>
+      <label for="sensor_name">Select Sensor:</label>
+      <select id="sensor_name" onchange="loadGraph()">
+        <option value="">Loading sensors...</option>
+      </select>
+      <canvas id="myChart" width="600" height="300"></canvas>
+    </section>
+
+  <script>
+    let chart = null;
+    const threshold = 1; // You can set to a suitable value for splitting data
+    async function loadSensors() {
+      try {
+        const response = await fetch('show_data.php?mode=names&group=groupA7');
+        if (!response.ok) throw new Error('Network response was not ok');
+        const sensors = await response.json();
+        let dropdown = document.getElementById('sensor_name');
+        dropdown.innerHTML = "";
+        if (sensors.length === 0) {
+          dropdown.innerHTML = '<option value="">No sensors found</option>';
+          return;
+        }
+        sensors.forEach(sensor => {
+          let opt = document.createElement('option');
+          opt.value = sensor;
+          opt.textContent = sensor;
+          dropdown.appendChild(opt);
+        });
+        dropdown.value = sensors[0];
+        loadGraph();
+      } catch (error) {
+        alert('Failed to load sensor list.');
+      }
+    }
+
+    async function loadGraph() {
+      const sensorName = document.getElementById('sensor_name').value;
+      if (!sensorName) return;
+      try {
+        const response = await fetch(`show_data.php?mode=data&group=groupA7&sensor_name=${encodeURIComponent(sensorName)}`);
+        if (!response.ok) throw new Error('Network response was not ok');
+        const data = await response.json();
+        if (data.error) {
+          alert(data.error);
+          return;
+        }
+        const timestamps = data.timestamps.slice(-50);
+        const values = data.values.slice(-50);
+        const below = [], above = [];
+        values.forEach((value, i) => {
+          if (value <= threshold) {
+            below[i] = value; above[i] = null;
+          } else {
+            below[i] = null; above[i] = value;
+          }
+        });
+        const ctx = document.getElementById('myChart').getContext('2d');
+        if (chart) chart.destroy();
+        chart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: timestamps,
+            datasets: [
+              {
+                label: '≤ Threshold',
+                data: below,
+                borderColor: '#8B0000',
+                backgroundColor: 'rgba(139,0,0,0.1)',
+                fill: true,
+                tension: 0.4
+              },
+              {
+                label: '> Threshold',
+                data: above,
+                borderColor: '#FF0000',
+                backgroundColor: 'rgba(255,0,0,0.1)',
+                fill: true,
+                tension: 0.4
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            scales: {
+              x: { title: { display: true, text: 'Timestamp' } },
+              y: { title: { display: true, text: 'Sensor Data' }, beginAtZero: true }
+            },
+            plugins: {
+              annotation: {
+                annotations: {
+                  thresholdLine: {
+                    type: 'line',
+                    yMin: threshold,
+                    yMax: threshold,
+                    borderColor: '#A52A2A',
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    label: {
+                      content: `Threshold: ${threshold}`,
+                      enabled: true,
+                      position: 'end'
+                    }
+                  }
+                }
+              }
+            }
+          }
+        });
+      } catch (error) {
+        alert('Failed to load sensor data.');
+      }
+    }
+    loadSensors();
+  </script>
+</body>
+</html>

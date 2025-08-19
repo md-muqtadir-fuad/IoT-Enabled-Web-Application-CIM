@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Smart Real-Time Monitoring and Control of Pill Dispensing and Packaging</title>
+  <link rel="stylesheet" href="../style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.0.0"></script>
+</head>
+<body>
+  <h1>Group B3</h1>
+  <h2>Smart Real-Time Monitoring and Control of Pill Dispensing and Packaging Process for Pharmaceutical Industries Using IoT and Embedded Systems</h2>
+
+  <section>
+    <strong>Group Members:</strong>
+    <ul>
+      <li>2008064</li>
+      <li>2008066</li>
+      <li>2008095</li>
+      <li>2008114</li>
+      <li>2008115</li>
+      <li>2008117</li>
+    </ul>
+  </section>
+
+  <section>
+    <strong>Problem Statement:</strong>
+    <p>
+      Manual inspection of pharmaceutical packages often results in errors such as underfilled containers, mislabeling, and missing items. These issues compromise safety, regulatory compliance, and productivity.
+    </p>
+  </section>
+
+  <section>
+  <strong>Devices &amp; Tasks:</strong>
+  <table>
+    <tr>
+      <th>Device / Component</th>
+      <th>Task / Function</th>
+    </tr>
+    <tr>
+      <td>Servo Motor (SG90)</td>
+      <td>Operates the gate that controls the fall of pills through the Break Beam sensor</td>
+    </tr>
+    <tr>
+      <td>IR Break Beam Sensor</td>
+      <td>Counts the number of pills</td>
+    </tr>
+    <tr>
+      <td>DC motor + L298N motor driver</td>
+      <td>Works as the prime mover of the conveyor belt</td>
+    </tr>
+    <tr>
+      <td>IR Proximity sensor</td>
+      <td>Controls start and stop of conveyor belt as well as counts the number of bottles being filled</td>
+    </tr>
+    <tr>
+      <td>Load sensor + HX711 Amplifier</td>
+      <td>Measures weight of each bottle to recheck whether the weight is within the specification limit or not</td>
+    </tr>
+    <tr>
+      <td>Servo Motor (MG996R)</td>
+      <td>Controls mechanical arm to remove the bottle that is out of specification limit</td>
+    </tr>
+    <tr>
+      <td>Arduino UNO</td>
+      <td>Controls all the sensors and servo motors</td>
+    </tr>
+    <tr>
+      <td>ESP-32</td>
+      <td>Sends data to the website</td>
+    </tr>
+  </table>
+</section>
+
+
+ <section>
+  <strong>Project Description:</strong>
+  <ol>
+    <li>
+      The DC motor operating the conveyor belt runs by default until the IR Proximity sensor senses an empty bottle.
+    </li>
+    <li>
+      As soon as the proximity sensor senses an object (a bottle), the conveyor stops. The servomotor operating the pill gate rotates 60 degrees to open the pill chamber, allowing pills to fall through the IR Break Beam sensor. The proximity sensor also counts the number of bottles and sends this data to the server via the ESP-32 module.
+    </li>
+    <li>
+      When the IR Break Beam sensor counts 5 pills, the servo motor returns the pill gate to its initial position, closing the gate, and the conveyor belt starts moving again.
+    </li>
+    <li>
+      The weight sensor measures the weight of each bottle as it is placed on the load sensor. The weight of each bottle is sent to the server through the ESP-32 module.
+    </li>
+    <li>
+      If the weight of any bottle exceeds the specified limit, another servomotor (controlling an arm to remove bottles from the belt) activates and removes the overweight bottle from the line.
+    </li>
+    <li>
+      All these sensors and actuators are connected and controlled by an Arduino UNO board serving as the main microcontroller.
+    </li>
+  </ol>
+</section>
+
+  <section>
+      <strong>Poster:</strong>
+      <p>
+        <a href="../poster/B3.jpg" target="_blank">Download Project Poster</a>
+      </p>
+      <p>
+        <img src="../poster/B3.jpg" alt="Project Poster" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+      </p>
+    </section>
+  <section>
+    <strong>Arduino Code:</strong>
+    <pre>
+#include &lt;Servo.h&gt;
+#include "HX711.h"
+
+// Pin definitions
+#define PROX_SENSOR 2
+#define EMITTER_PIN 3
+#define BEAM_SENSOR 4
+#define GATE_SERVO_PIN 5
+#define REJECT_SERVO_PIN 6
+#define HX_DT 7
+#define HX_SCK 8
+#define MOTOR_IN1 9
+#define MOTOR_IN2 10
+
+Servo gateServo;
+Servo rejectServo;
+HX711 scale;
+
+int bottleCount = 0;
+int pillCount = 0;
+bool gateOpen = false;
+bool bottleProcessing = false;
+bool lastProxState = false;
+bool lastBeamState = true;
+
+const int targetPillCount = 5;
+const float weightMin = 180.0;
+const float weightMax = 200.0;
+
+void setup() {
+  Serial.begin(9600);
+
+  pinMode(PROX_SENSOR, INPUT);
+  pinMode(EMITTER_PIN, OUTPUT);
+  pinMode(BEAM_SENSOR, INPUT);
+  pinMode(MOTOR_IN1, OUTPUT);
+  pinMode(MOTOR_IN2, OUTPUT);
+
+  digitalWrite(EMITTER_PIN, HIGH);  // IR emitter on
+
+  gateServo.attach(GATE_SERVO_PIN);
+  rejectServo.attach(REJECT_SERVO_PIN);
+  gateServo.write(0);       // Gate closed
+  rejectServo.write(0);     // Neutral
+
+  scale.begin(HX_DT, HX_SCK);
+  scale.set_scale(767.83);  // Adjust this value after calibration
+  scale.tare();             // Zero scale
+
+  startConveyor();
+}
+
+void loop() {
+  bool currentProx = digitalRead(PROX_SENSOR) == HIGH;
+
+  if (currentProx && !lastProxState && !bottleProcessing) {
+    stopConveyor();
+    delay(300);
+    bottleProcessing = true;
+    pillCount = 0;
+    gateOpen = true;
+    gateServo.write(15);  // Open gate
+  }
+
+  if (gateOpen) {
+    bool currentBeam = digitalRead(BEAM_SENSOR) == LOW;
+    if (currentBeam && lastBeamState) {
+      pillCount++;
+      Serial.println("pill_count," + String(pillCount));
+    }
+    lastBeamState = !currentBeam;
+
+    if (pillCount >= targetPillCount) {
+      gateServo.write(0);  // Close gate
+      gateOpen = false;
+      delay(700);
+      startConveyor();
+    }
+  }
+
+  if (bottleProcessing && !gateOpen) {
+    delay(2000);
+    stopConveyor();
+
+    float weight = scale.get_units();
+    if (weight > 1.0) {  // Filter out noise
+      bottleCount++;
+
+      // Send to ESP32 over Serial
+      Serial.print("weight:");
+      Serial.print(String(weight, 2));
+      Serial.print(",bottle:");
+      Serial.println(String(bottleCount));
+
+      if (weight &lt; weightMin || weight &gt; weightMax) {
+        rejectServo.write(0);
+        delay(500);
+        rejectServo.write(180);
+      }
+    }
+
+    scale.tare();
+    bottleProcessing = false;
+    startConveyor();
+  }
+
+  lastProxState = currentProx;
+}
+
+void startConveyor() {
+  digitalWrite(MOTOR_IN1, HIGH);
+  digitalWrite(MOTOR_IN2, LOW);
+}
+
+void stopConveyor() {
+  digitalWrite(MOTOR_IN1, LOW);
+  digitalWrite(MOTOR_IN2, LOW);
+}
+    </pre>
+  </section>
+  <section>
+    <strong>Video Demonstration:</strong>
+    <center>
+      <iframe width="560" height="315" src="https://www.youtube.com/embed/dYdD4COAD6M" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+    </center>
+  </section>
+
+  <section>
+    <strong>Sensor Data Visualization:</strong><br>
+    <label for="sensor_name">Select Sensor:</label>
+    <select id="sensor_name" onchange="loadGraph()">
+      <option value="">Loading sensors...</option>
+    </select>
+    <canvas id="myChart" width="600" height="300"></canvas>
+  </section>
+
+  <script>
+    let chart = null;
+    const threshold = 100;
+    const groupName = 'groupB3';
+
+    async function loadSensors() {
+      try {
+        const response = await fetch('show_data.php?mode=names&group=' + groupName);
+        if (!response.ok) throw new Error('Network response was not ok');
+        const sensors = await response.json();
+        let dropdown = document.getElementById('sensor_name');
+        dropdown.innerHTML = "";
+        if (sensors.length === 0) {
+          dropdown.innerHTML = '<option value="">No sensors found</option>';
+          return;
+        }
+        sensors.forEach(sensor => {
+          let opt = document.createElement('option');
+          opt.value = sensor;
+          opt.textContent = sensor;
+          dropdown.appendChild(opt);
+        });
+        dropdown.value = sensors[0];
+        loadGraph();
+      } catch (error) {
+        alert('Failed to load sensor list.');
+      }
+    }
+
+    async function loadGraph() {
+      const sensorName = document.getElementById('sensor_name').value;
+      if (!sensorName) return;
+      try {
+        const response = await fetch(`show_data.php?mode=data&group=${groupName}&sensor_name=${encodeURIComponent(sensorName)}`);
+        if (!response.ok) throw new Error('Network response was not ok');
+        const data = await response.json();
+        if (data.error) {
+          alert(data.error);
+          return;
+        }
+        const timestamps = data.timestamps.slice(-50);
+        const values = data.values.slice(-50);
+        const below = [], above = [];
+        values.forEach((value, i) => {
+          if (value <= threshold) {
+            below[i] = value; above[i] = null;
+          } else {
+            below[i] = null; above[i] = value;
+          }
+        });
+        const ctx = document.getElementById('myChart').getContext('2d');
+        if (chart) chart.destroy();
+        chart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: timestamps,
+            datasets: [
+              {
+                label: '≤ Threshold',
+                data: below,
+                borderColor: '#8B0000',
+                backgroundColor: 'rgba(139,0,0,0.1)',
+                fill: true,
+                tension: 0.4
+              },
+              {
+                label: '> Threshold',
+                data: above,
+                borderColor: '#FF0000',
+                backgroundColor: 'rgba(255,0,0,0.1)',
+                fill: true,
+                tension: 0.4
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            scales: {
+              x: { title: { display: true, text: 'Timestamp' } },
+              y: { title: { display: true, text: 'Sensor Data' }, beginAtZero: true }
+            },
+            plugins: {
+              annotation: {
+                annotations: {
+                  thresholdLine: {
+                    type: 'line',
+                    yMin: threshold,
+                    yMax: threshold,
+                    borderColor: '#A52A2A',
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    label: {
+                      content: `Threshold: ${threshold}`,
+                      enabled: true,
+                      position: 'end'
+                    }
+                  }
+                }
+              }
+            }
+          }
+        });
+      } catch (error) {
+        alert('Failed to load sensor data.');
+      }
+    }
+    loadSensors();
+  </script>
+</body>
+</html>

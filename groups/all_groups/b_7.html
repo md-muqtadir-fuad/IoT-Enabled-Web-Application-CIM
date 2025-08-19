@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Object Detection and Alignment Monitoring System</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="../style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+  <h1>Group B7</h1>
+  <h2>Object Detection and Alignment Monitoring System for Conveyor Lines</h2>
+
+  <section>
+    <strong>Group Members:</strong>
+    <ul>
+      <li>2008081</li>
+      <li>2008097</li>
+      <li>2008098</li>
+      <li>2008099</li>
+      <li>2008102</li>
+    </ul>
+  </section>
+
+  <section>
+    <strong>Problem Statement:</strong>
+    <p>
+      Manual object counting and alignment checking on conveyor belts is error-prone and inefficient. Misaligned objects can cause jams, packaging defects, or production delays. A sensor-based automated system is needed to detect objects, monitor their alignment, and alert operators only when corrective action is necessary.
+    </p>
+  </section>
+
+  <section>
+    <strong>Devices & Tasks:</strong>
+    <table>
+      <tr>
+        <th>Device / Component</th>
+        <th>Task / Function</th>
+      </tr>
+      <tr>
+        <td>IR Sensor Module</td>
+        <td>Detects and counts objects</td>
+      </tr>
+      <tr>
+        <td>Ultrasonic Distance Sensor (HC-SR04)</td>
+        <td>Measures lateral alignment of objects</td>
+      </tr>
+      <tr>
+        <td>Buzzer</td>
+        <td>Alerts only when misalignment is detected</td>
+      </tr>
+      <tr>
+        <td>Microcontroller</td>
+        <td>Reads sensors, logic, and uploads data</td>
+      </tr>
+    </table>
+  </section>
+
+  <section>
+    <strong>Project Description:</strong>
+    <ol>
+      <li>The IR sensor detects and counts objects passing on the conveyor.</li>
+      <li>The time intervals between detections are used to calculate flow rate (objects per minute).</li>
+      <li>The ultrasonic sensor checks if an object is properly aligned (within 7 cm). If misaligned, the buzzer activates.</li>
+      <li>All readings are sent wirelessly to a cloud dashboard for visualization and long-term analysis.</li>
+      <li>This cost-effective solution is ideal for small- and medium-sized industries for automation and quality control.</li>
+    </ol>
+  </section>
+
+  <section>
+    <strong>Poster:</strong>
+    <p>
+      <a href="#" target="_blank">Download Project Poster</a>
+    </p>
+    <p>
+      <img src="../poster/B7.jpg" alt="Project Poster" style="max-width:100%; height:auto; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+    </p>
+  </section>
+
+  <section>
+    <strong>Video Demonstration</strong>
+    <center>
+      <iframe width="560" height="315" src="https://www.youtube.com/embed/mQpP9mhw1CA" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+    </center>
+  </section>
+
+  <section>
+    <strong>Arduino Code:</strong>
+    <pre>
+/* Object Detection and Alignment Monitoring System */
+const int obstaclePin = A0;
+const int ledPin = 13;
+const int trigPin = 7;
+const int echoPin = 6;
+const int buzzerPin = 8;
+unsigned long lastObjectCountReset = 0;
+unsigned long lastSensorPrint = 0;
+int objectCountLastMinute = 0;
+int totalObjectCount = 0;
+
+void setup() {
+  Serial.begin(9600);
+  pinMode(obstaclePin, INPUT);
+  pinMode(ledPin, OUTPUT);
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+  pinMode(buzzerPin, OUTPUT);
+  digitalWrite(buzzerPin, LOW);
+}
+
+void loop() {
+  unsigned long currentTime = millis();
+  int sensorValue = analogRead(obstaclePin);
+  if (sensorValue >= 989) {
+    objectCountLastMinute++;
+    totalObjectCount++;
+    digitalWrite(ledPin, HIGH);
+    delay(50);
+    digitalWrite(ledPin, LOW);
+  }
+  // Sonar Reading
+  long duration;
+  float distanceCm;
+  digitalWrite(trigPin, LOW); delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH); delayMicroseconds(10); digitalWrite(trigPin, LOW);
+  duration = pulseIn(echoPin, HIGH, 30000);
+  distanceCm = duration * 0.034 / 2;
+  // Alignment Check
+  String alignmentStatus = "";
+  if (distanceCm >= 6 && distanceCm <= 8) {
+    alignmentStatus = "alignment ✅";
+    digitalWrite(buzzerPin, HIGH);
+  } else if (distanceCm > 8 && distanceCm <= 10) {
+    alignmentStatus = "misaligned ❌";
+    digitalWrite(buzzerPin, LOW);
+  } else if (distanceCm > 10) {
+    alignmentStatus = "no objects nearby ⚠️";
+    digitalWrite(buzzerPin, HIGH);
+  } else {
+    digitalWrite(buzzerPin, HIGH);
+  }
+  // Print Every 1 Second
+  if (currentTime - lastSensorPrint >= 989) {
+    Serial.print("Obstacle Sensor: ");
+    Serial.print(sensorValue);
+    Serial.print(" | Count in Last Min: ");
+    Serial.print(objectCountLastMinute);
+    Serial.print(" | Total Count: ");
+    Serial.println(totalObjectCount);
+    Serial.print("Sonar Distance: ");
+    Serial.print(distanceCm);
+    Serial.print(" cm → ");
+    Serial.println(alignmentStatus);
+    lastSensorPrint = currentTime;
+  }
+  // Reset objectCountLastMinute every 60s
+  if (currentTime - lastObjectCountReset >= 60000) {
+    objectCountLastMinute = 0;
+    lastObjectCountReset = currentTime;
+  }
+  delay(50);
+}
+    </pre>
+  </section>
+
+  <section>
+    <strong>Sensor Data Visualization:</strong><br>
+    <label for="sensor_name">Select Sensor:</label>
+    <select id="sensor_name" onchange="loadGraph()">
+      <option value="">Loading sensors...</option>
+    </select>
+    <canvas id="myChart" width="600" height="300"></canvas>
+  </section>
+
+  <script>
+    let chart = null;
+    const groupName = 'groupB7';
+    async function loadSensors() {
+      try {
+        const response = await fetch(`show_data.php?mode=names&group=${groupName}`);
+        if (!response.ok) throw new Error('Network response was not ok');
+        const sensors = await response.json();
+        let dropdown = document.getElementById('sensor_name');
+        dropdown.innerHTML = "";
+        if (sensors.length === 0) {
+          dropdown.innerHTML = '<option value="">No sensors found</option>';
+          return;
+        }
+        sensors.forEach(sensor => {
+          let opt = document.createElement('option');
+          opt.value = sensor;
+          opt.textContent = sensor;
+          dropdown.appendChild(opt);
+        });
+        dropdown.value = sensors[0];
+        loadGraph();
+      } catch (error) {
+        alert('Failed to load sensor list.');
+      }
+    }
+    async function loadGraph() {
+      const sensorName = document.getElementById('sensor_name').value;
+      if (!sensorName) return;
+      try {
+        const response = await fetch(`show_data.php?mode=data&group=${groupName}&sensor_name=${encodeURIComponent(sensorName)}`);
+        if (!response.ok) throw new Error('Network response was not ok');
+        const data = await response.json();
+        if (data.error) {
+          alert(data.error);
+          return;
+        }
+        const ctx = document.getElementById('myChart').getContext('2d');
+        if(chart) chart.destroy();
+        chart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: data.timestamps,
+            datasets: [{
+              label: `${sensorName} Data`,
+              data: data.values,
+              borderColor: 'rgba(75, 192, 192, 1)',
+              backgroundColor: 'rgba(75, 192, 192, 0.2)',
+              fill: true,
+              tension: 0.3
+            }]
+          },
+          options: {
+            responsive: true,
+            scales: {
+              x: { title: { display: true, text: 'Timestamp' } },
+              y: { title: { display: true, text: 'Sensor Data' }, beginAtZero: true }
+            }
+          }
+        });
+      } catch (error) {
+        alert('Failed to load sensor data.');
+      }
+    }
+    loadSensors();
+  </script>
+</body>
+</html>

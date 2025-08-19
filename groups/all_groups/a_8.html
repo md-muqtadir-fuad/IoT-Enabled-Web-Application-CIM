@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Smart Flow-Activated Water Heating System (Group A8)</title>
+  <link rel="stylesheet" href="../style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <h1>Group A8</h1>
+  <h2>Smart Flow-Activated Water Heating System for Dairy Processing Plants</h2>
+
+  <section>
+    <strong>Group Members:</strong>
+    <ul>
+      <li>2008011</li>
+      <li>2008014</li>
+      <li>2008015</li>
+      <li>2008018</li>
+      <li>2008020</li>
+    </ul>
+  </section>
+
+  <section>
+    <strong>Problem Statement:</strong>
+    <p>
+      In dairy processing plants, cold water at flow startup slows cleaning, risks equipment damage, and compromises hygiene. Traditional systems heat water continuously, wasting energy during idle periods.
+    </p>
+  </section>
+
+  <section>
+    <strong>Devices & Tasks:</strong>
+    <table>
+      <tr>
+        <th>Device / Component</th>
+        <th>Task / Function</th>
+      </tr>
+      <tr>
+        <td>DS18B20</td>
+        <td>Temperature measurement</td>
+      </tr>
+      <tr>
+        <td>YF-S201 Flow Sensor</td>
+        <td>Detects water flow</td>
+      </tr>
+      <tr>
+        <td>ESP-01 (ESP8266)</td>
+        <td>Wi-Fi microcontroller, logic, and server upload</td>
+      </tr>
+      <tr>
+        <td>LED</td>
+        <td>Simulated heater ON/OFF indicator</td>
+      </tr>
+    </table>
+  </section>
+
+  <section>
+    <strong>Project Description:</strong>
+    <ol>
+      <li>The flow sensor detects water movement; if water is flowing, the temperature is measured.</li>
+      <li>If water is flowing and temperature is below the low threshold, the heater (LED) turns ON.</li>
+      <li>If no flow or temperature is above the upper threshold, the heater turns OFF to save energy.</li>
+      <li>All sensor and actuator states are logged to the cloud for monitoring and analysis.</li>
+      <li>This smart control saves energy, improves hygiene, and reduces operational costs in industrial water heating.</li>
+    </ol>
+  </section>
+
+  <section>
+    <strong>Poster:</strong>
+    <p>
+      <a href="../poster/A8.jpg" target="_blank">Download Project Poster</a>
+    </p>
+    <p>
+      <img src="../poster/A8.jpg" alt="Project Poster" style="max-width:100%; height:auto; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+    </p>
+  </section>
+
+  <section>
+    <strong>Video Demonstration</strong>
+    <center>
+      <iframe width="560" height="315" src="https://www.youtube.com/embed/qqGXQsu_llM" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+    </center>
+  </section>
+
+  <section>
+    <strong>Arduino Code:</strong>
+    <pre>
+#include &lt;ESP8266WiFi.h&gt;
+#include &lt;ESP8266HTTPClient.h&gt;
+#include &lt;ESP8266WebServer.h&gt;
+#include &lt;OneWire.h&gt;
+#include &lt;DallasTemperature.h&gt;
+
+#define TEMP_LOW 25
+#define TEMP_HIGH 30
+#define FLOW_PIN 3      // RX (GPIO3)
+#define TEMP_PIN 2      // GPIO2
+#define HEATER_LED 0    // GPIO0
+
+const char* ssid = "raihan";
+const char* password = "12345678";
+
+OneWire oneWire(TEMP_PIN);
+DallasTemperature sensors(&oneWire);
+ESP8266WebServer server(80);
+
+volatile unsigned long pulseCount = 0;
+bool flowDetected = false;
+float temperature = 0;
+bool heaterOn = false;
+unsigned long lastCheck = 0;
+
+void IRAM_ATTR pulseCounter() {
+  pulseCount++;
+}
+
+void handleRoot() {
+  String html = "&lt;!DOCTYPE html&gt;&lt;html&gt;&lt;head&gt;&lt;meta charset='UTF-8'&gt;";
+  html += "&lt;meta http-equiv='refresh' content='2'&gt;";
+  html += "&lt;title&gt;Smart Heater Monitor&lt;/title&gt;&lt;/head&gt;&lt;body style='font-family:sans-serif;'&gt;";
+  html += "&lt;h2&gt;Smart Flow-Activated Heater&lt;/h2&gt;";
+  html += "&lt;p&gt;&lt;strong&gt;Temperature:&lt;/strong&gt; " + String(temperature, 2) + " &deg;C&lt;/p&gt;";
+  html += "&lt;p&gt;&lt;strong&gt;Flow Detected:&lt;/strong&gt; " + String(flowDetected ? "YES" : "NO") + "&lt;/p&gt;";
+  html += "&lt;p&gt;&lt;strong&gt;Heater Status:&lt;/strong&gt; &lt;span style='color:" + String(heaterOn ? "green" : "red") + "'&gt;" + (heaterOn ? "ON" : "OFF") + "&lt;/span&gt;&lt;/p&gt;";
+  html += "&lt;p&gt;&lt;small&gt;Wi-Fi: &lt;strong&gt;" + String(ssid) + "&lt;/strong&gt;&lt;/small&gt;&lt;/p&gt;";
+  html += "&lt;/body&gt;&lt;/html&gt;";
+  server.send(200, "text/html", html);
+}
+
+void setup() {
+  pinMode(FLOW_PIN, INPUT);
+  pinMode(HEATER_LED, OUTPUT);
+  digitalWrite(HEATER_LED, LOW);
+
+  sensors.begin();
+  attachInterrupt(digitalPinToInterrupt(FLOW_PIN), pulseCounter, RISING);
+
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) { delay(500); }
+
+  server.on("/", handleRoot);
+  server.begin();
+}
+
+void loop() {
+  server.handleClient();
+  unsigned long now = millis();
+  if (now - lastCheck &gt;= 2000) {
+    lastCheck = now;
+
+    sensors.requestTemperatures();
+    temperature = sensors.getTempCByIndex(0);
+
+    noInterrupts();
+    unsigned long count = pulseCount;
+    pulseCount = 0;
+    interrupts();
+    flowDetected = (count &gt; 0);
+
+    if (flowDetected &amp;&amp; temperature &lt; TEMP_LOW) {
+      digitalWrite(HEATER_LED, HIGH);
+      heaterOn = true;
+    } else if (!flowDetected || temperature &gt;= TEMP_HIGH) {
+      digitalWrite(HEATER_LED, LOW);
+      heaterOn = false;
+    }
+
+    if (WiFi.status() == WL_CONNECTED) {
+      WiFiClient client;
+      HTTPClient http;
+
+      http.begin(client, "http://ipe20-buet.top/get_data.php?g=groupA8&sn=Flow&sd=" + String(flowDetected ? 1 : 0) + "&p=passA8");
+      http.GET(); http.end(); delay(200);
+
+      http.begin(client, "http://ipe20-buet.top/get_data.php?g=groupA8&sn=Temperature&sd=" + String(temperature, 2) + "&p=passA8");
+      http.GET(); http.end(); delay(200);
+
+      http.begin(client, "http://ipe20-buet.top/get_data.php?g=groupA8&sn=Heater&sd=" + String(heaterOn ? 1 : 0) + "&p=passA8");
+      http.GET(); http.end(); delay(200);
+    }
+  }
+}
+    </pre>
+  </section>
+
+  <section>
+    <strong>Sensor Data Visualization:</strong><br>
+    <label for="sensor_name">Select Sensor:</label>
+    <select id="sensor_name" onchange="loadGraph()">
+      <option value="">Loading sensors...</option>
+    </select>
+    <canvas id="myChart" width="600" height="300"></canvas>
+  </section>
+
+  <script>
+    let chart = null;
+    const groupName = 'groupA8';
+    async function loadSensors() {
+      try {
+        const response = await fetch(`show_data.php?mode=names&group=${groupName}`);
+        if (!response.ok) throw new Error('Network response was not ok');
+        const sensors = await response.json();
+        let dropdown = document.getElementById('sensor_name');
+        dropdown.innerHTML = "";
+        if (sensors.length === 0) {
+          dropdown.innerHTML = '<option value="">No sensors found</option>';
+          return;
+        }
+        sensors.forEach(sensor => {
+          let opt = document.createElement('option');
+          opt.value = sensor;
+          opt.textContent = sensor;
+          dropdown.appendChild(opt);
+        });
+        dropdown.value = sensors[0];
+        loadGraph();
+      } catch (error) {
+        alert('Failed to load sensor list.');
+      }
+    }
+    async function loadGraph() {
+      const sensorName = document.getElementById('sensor_name').value;
+      if (!sensorName) return;
+      try {
+        const response = await fetch(`show_data.php?mode=data&group=${groupName}&sensor_name=${encodeURIComponent(sensorName)}`);
+        if (!response.ok) throw new Error('Network response was not ok');
+        const data = await response.json();
+        if (data.error) {
+          alert(data.error);
+          return;
+        }
+        const ctx = document.getElementById('myChart').getContext('2d');
+        if(chart) chart.destroy();
+        chart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: data.timestamps,
+            datasets: [{
+              label: `${sensorName} Data`,
+              data: data.values,
+              borderColor: '#8B0000',
+              backgroundColor: 'rgba(139,0,0,0.1)',
+              fill: true,
+              tension: 0.4
+            }]
+          },
+          options: {
+            responsive: true,
+            scales: {
+              x: { title: { display: true, text: 'Timestamp' } },
+              y: { title: { display: true, text: 'Sensor Data' }, beginAtZero: true }
+            }
+          }
+        });
+      } catch (error) {
+        alert('Failed to load sensor data.');
+      }
+    }
+    loadSensors();
+  </script>
+</body>
+</html>

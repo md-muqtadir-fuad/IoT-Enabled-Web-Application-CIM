@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sensor Data Viewer</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'primary-red': '#94180f',      // Base red for headers/buttons
+            'light-red': '#bb3f38',       // Hover/navigation
+            'dark-red': '#7c140c',        // Darker hover/accent
+            'accent-red': '#cc4a41',      // Borders/accents
+            'lighter-red': '#e0908c',     // Subtle highlights
+          },
+          animation: {
+            'fade-in': 'fadeIn 1s ease-out',
+            'slide-up': 'slideUp 0.8s ease-out',
+          },
+          keyframes: {
+            fadeIn: {
+              '0%': { opacity: '0' },
+              '100%': { opacity: '1' },
+            },
+            slideUp: {
+              '0%': { opacity: '0', transform: 'translateY(20px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' },
+            },
+          },
+        },
+      },
+    }
+  </script>
+  <!-- Google Font: Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&amp;display=swap" rel="stylesheet">
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f3f4f6; /* light gray */
+      scroll-behavior: smooth;
+      margin: 0;
+      min-height: 100vh;
+      position: relative;
+      overflow-x: hidden;
+    }
+    /* Hero background */
+    .hero-bg {
+      background: linear-gradient(135deg, rgba(148, 24, 15, 0.8), rgba(187, 63, 56, 0.5)), url('https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80');
+      background-size: cover;
+      background-position: center;
+      background-attachment: fixed;
+    }
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f3f4f6;
+      border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #94180f;
+      border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #7c140c;
+    }
+    html {
+      scrollbar-color: #94180f #f3f4f6;
+      scrollbar-width: thin;
+    }
+        /* Navbar */
+        nav {
+          background: linear-gradient(to right, #bb3f38, #94180f);
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 0.75rem 2rem;
+          position: sticky;
+          top: 0;
+          z-index: 100;
+        }
+        nav .logo {
+          color: #fff;
+          font-size: 1.75rem;
+          font-weight: 700;
+          text-decoration: none;
+        }
+        nav .menu {
+          display: flex;
+          gap: 1.5rem;
+        }
+        nav .menu a {
+          color: #fff;
+          text-decoration: none;
+          font-size: 1.2rem;
+          padding: 0.5rem 1rem;
+          transition: background 0.3s, transform 0.3s;
+        }
+        nav .menu a:hover {
+          background: rgba(255,255,255,0.2);
+          border-radius: 0.5rem;
+          transform: scale(1.1);
+        }
+        
+        /* Mobile nav */
+        .nav-toggle {
+          display: none;
+          flex-direction: column;
+          cursor: pointer;
+        }
+        .nav-toggle span {
+          background: #fff;
+          height: 3px;
+          width: 25px;
+          margin: 4px 0;
+          transition: all 0.3s ease;
+        }
+        @media(max-width:768px) {
+          .nav-toggle { display: flex; }
+          nav .menu {
+            position: absolute;
+            top: 60px; left: 0; right:0;
+            background: #94180f;
+            flex-direction: column;
+            align-items: center;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+          }
+          nav .menu.open { max-height: 300px; }
+        }
+        /* Hover animation for buttons */
+        .btn-anim {
+            transition: all 0.3s ease;
+        }
+        .btn-anim:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(148, 24, 15, 0.3);
+        }
+    /* Table styles */
+    #tableContainer {
+      overflow-x: auto;
+      overflow-y: auto;
+      max-height: 400px; /* Fixed height for vertical scroll */
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(148, 24, 15, 0.3);
+      padding: 1rem;
+      min-height: 200px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      color: #333;
+    }
+    th, td {
+      border: 1px solid #cc4a41;
+      padding: 0.8rem;
+      text-align: left;
+      white-space: nowrap; /* Prevent text wrapping */
+    }
+    th {
+      background: #94180f;
+      color: #f3f4f6;
+      text-transform: uppercase;
+      font-weight: 600;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    tbody tr:hover {
+      background: #e0908c;
+      transition: background 0.3s ease;
+    }
+    /* Chart container */
+    #chartContainer {
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(148, 24, 15, 0.3);
+      padding: 1rem;
+    }
+    canvas {
+      width: 100% !important;
+      height: 400px !important;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Navigation Bar -->
+<nav>
+  <a class="logo" href="http://ipe20-buet.top/">CIM Course</a>
+  <div class="nav-toggle" onclick="this.classList.toggle('active'); document.querySelector('nav .menu').classList.toggle('open');">
+    <span></span><span></span><span></span>
+  </div>
+  <div class="menu">
+    <a href="http://ipe20-buet.top/">Overview</a>
+    <a href="http://ipe20-buet.top/groups/group_info.html">Projects</a>
+    <a href="http://ipe20-buet.top/Sensor_data/data_info.html">Sensor Data</a>
+    <a href="http://ipe20-buet.top/contact_info.html">Developers</a>
+  </div>
+</nav>
+  <main class="container mx-auto p-4 md:p-8 w-full">
+    <!-- Hero Section -->
+    <section id="hero" class="hero-bg p-8 md:p-12 rounded-xl shadow-lg mb-8 text-center text-white animate-slide-up">
+      <h1 class="text-4xl md:text-5xl font-extrabold mb-4">CIM Group Sensor Data Viewer</h1>
+    </section>
+
+    <!-- Controls Section -->
+    <section class="bg-white p-8 rounded-xl shadow-lg mb-8 animate-fade-in max-w-md mx-auto">
+      <label for="groupSelect" class="block text-lg font-semibold text-primary-red mb-3">Select Group:</label>
+      <select id="groupSelect" class="w-full p-3 rounded-lg border-2 border-accent-red focus:border-dark-red focus:ring-2 focus:ring-dark-red bg-white text-gray-800 transition duration-300" aria-label="Select a Project Group">
+        <option value="" disabled selected>-- Select Group --</option>
+        <option value="groupA1">Group A1</option>
+        <option value="groupA2">Group A2</option>
+        <option value="groupA3">Group A3</option>
+        <option value="groupA4">Group A4</option>
+        <option value="groupA5">Group A5</option>
+        <option value="groupA6">Group A6</option>
+        <option value="groupA7">Group A7</option>
+        <option value="groupA8">Group A8</option>
+        <option value="groupA9">Group A9</option>
+        <option value="groupA10">Group A10</option>
+        <option value="groupA11">Group A11</option>
+        <option value="groupA12">Group A12</option>
+        <option value="groupB1">Group B1</option>
+        <option value="groupB2">Group B2</option>
+        <option value="groupB3">Group B3</option>
+        <option value="groupB4">Group B4</option>
+        <option value="groupB5">Group B5</option>
+        <option value="groupB6">Group B6</option>
+        <option value="groupB7">Group B7</option>
+        <option value="groupB8">Group B8</option>
+        <option value="groupB9">Group B9</option>
+        <option value="groupB10">Group B10</option>
+        <option value="groupB11">Group B11</option>
+        <option value="groupB12">Group B12</option>
+      </select>
+
+      <label for="sensorSelect" class="block text-lg font-semibold text-primary-red mt-4 mb-3">Select Sensor:</label>
+      <select id="sensorSelect" class="w-full p-3 rounded-lg border-2 border-accent-red focus:border-dark-red focus:ring-2 focus:ring-dark-red bg-white text-gray-800 transition duration-300" disabled aria-label="Select a Sensor">
+        <option value="">Select a group first</option>
+      </select>
+
+      <button id="loadDataBtn" class="mt-4 w-full bg-primary-red hover:bg-dark-red text-white font-bold py-3 rounded-lg shadow-lg transition duration-300 transform hover:scale-105" disabled>Load Data</button>
+    </section>
+
+    <!-- Table Section -->
+    <section class="mb-8 animate-fade-in w-full">
+      <h2 class="text-3xl font-bold text-primary-red mb-4 text-center">Sensor Data Table</h2>
+      <div id="tableContainer" class="max-w-4xl mx-auto">No data loaded yet.</div>
+    </section>
+
+    <!-- Chart Section -->
+    <section class="mb-8 animate-fade-in w-full">
+      <h2 class="text-3xl font-bold text-primary-red mb-4 text-center">Sensor Data Graph</h2>
+      <div id="chartContainer" class="max-w-4xl mx-auto">
+        <canvas id="chartCanvas"></canvas>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    let chart = null;
+
+    const groupSelect = document.getElementById('groupSelect');
+    const sensorSelect = document.getElementById('sensorSelect');
+    const loadDataBtn = document.getElementById('loadDataBtn');
+    const tableContainer = document.getElementById('tableContainer');
+    const chartCanvas = document.getElementById('chartCanvas').getContext('2d');
+
+    groupSelect.addEventListener('change', async () => {
+      const group = groupSelect.value;
+      sensorSelect.innerHTML = '<option>Loading sensors...</option>';
+      sensorSelect.disabled = true;
+      loadDataBtn.disabled = true;
+      tableContainer.innerHTML = 'No data loaded yet.';
+      if (!group) return;
+
+      try {
+        const res = await fetch(`fetch_sensors.php?group=${group}`);
+        const data = await res.json();
+        if (data.error) {
+          alert(data.error);
+          sensorSelect.innerHTML = '<option value="">Error loading sensors</option>';
+          return;
+        }
+
+        if (data.length === 0) {
+          sensorSelect.innerHTML = '<option value="">No sensors found</option>';
+          return;
+        }
+
+        sensorSelect.innerHTML = '';
+        data.forEach(sensor => {
+          const opt = document.createElement('option');
+          opt.value = sensor;
+          opt.textContent = sensor;
+          sensorSelect.appendChild(opt);
+        });
+
+        sensorSelect.disabled = false;
+        loadDataBtn.disabled = false;
+      } catch (err) {
+        alert('Failed to load sensor list');
+        sensorSelect.innerHTML = '<option value="">Error loading sensors</option>';
+      }
+    });
+
+    loadDataBtn.addEventListener('click', async () => {
+      const group = groupSelect.value;
+      const sensor = sensorSelect.value;
+      if (!group || !sensor) {
+        alert('Select group and sensor first');
+        return;
+      }
+      tableContainer.innerHTML = 'Loading data...';
+
+      try {
+        const res = await fetch(`fetch_group_data.php?group=${group}&sensor_name=${encodeURIComponent(sensor)}`);
+        const data = await res.json();
+
+        if (data.error) {
+          alert(data.error);
+          tableContainer.innerHTML = 'Error loading data.';
+          return;
+        }
+
+        if (data.length === 0) {
+          tableContainer.innerHTML = 'No data found.';
+          return;
+        }
+
+        // Create table
+        const table = document.createElement('table');
+        const headerRow = document.createElement('tr');
+
+        Object.keys(data[0]).forEach(key => {
+          const th = document.createElement('th');
+          th.textContent = key;
+          headerRow.appendChild(th);
+        });
+        table.appendChild(headerRow);
+
+        data.forEach(row => {
+          const tr = document.createElement('tr');
+          Object.values(row).forEach(val => {
+            const td = document.createElement('td');
+            td.textContent = val;
+            tr.appendChild(td);
+          });
+          table.appendChild(tr);
+        });
+
+        tableContainer.innerHTML = '';
+        tableContainer.appendChild(table);
+
+        // Prepare graph data
+        const timestamps = data.map(row => row.timestamp);
+        const values = data.map(row => parseFloat(row.sensor_data));
+
+        if (chart) chart.destroy();
+
+        chart = new Chart(chartCanvas, {
+          type: 'line',
+          data: {
+            labels: timestamps,
+            datasets: [{
+              label: `${sensor} Data`,
+              data: values,
+              borderColor: '#94180f',
+              backgroundColor: 'rgba(148, 24, 15, 0.3)',
+              fill: true,
+              tension: 0.3,
+              pointRadius: 3,
+              pointHoverRadius: 6,
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: {
+                labels: { color: '#94180f', font: { weight: 'bold', family: 'Inter' } }
+              }
+            },
+            scales: {
+              x: {
+                title: { display: true, text: 'Timestamp', color: '#94180f', font: { weight: 'bold', family: 'Inter' } },
+                ticks: { color: '#333' },
+                grid: { color: '#e0908c' }
+              },
+              y: {
+                title: { display: true, text: 'Sensor Data', color: '#94180f', font: { weight: 'bold', family: 'Inter' } },
+                ticks: { color: '#333' },
+                grid: { color: '#e0908c' },
+                beginAtZero: true
+              }
+            }
+          }
+        });
+      } catch (err) {
+        alert('Failed to load sensor data.');
+        tableContainer.innerHTML = 'Error loading data.';
+      }
+    });
+
+    // Mobile navigation toggle
+    const navToggle = document.querySelector('.nav-toggle');
+    const navMenu = document.querySelector('.nav-menu');
+    navToggle.addEventListener('click', () => {
+      navMenu.classList.toggle('active');
+    });
+    navMenu.querySelectorAll('a').forEach(link => {
+      link.addEventListener('click', () => {
+        navMenu.classList.remove('active');
+      });
+    });
+  </script>
+</body>
+</html>

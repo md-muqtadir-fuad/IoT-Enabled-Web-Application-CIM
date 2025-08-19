@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Automatic Dual-Tank Water Level Monitoring and Control (Group A12)</title>
+  <link rel="stylesheet" href="../style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+  <h1>Group A12</h1>
+  <h2>Automatic Dual-Tank Water Level Monitoring and Control System Using ESP32</h2>
+
+  <section>
+    <strong>Group Members:</strong>
+    <ul>
+      <li>2008027</li>
+      <li>2008025</li>
+      <li>2008023</li>
+      <li>2008028</li>
+    </ul>
+  </section>
+
+  <section>
+    <strong>Problem Statement:</strong>
+    <p>
+      Manual water tank management often leads to overflow, dry running of pumps, and unnecessary water or energy wastage. There is no efficient way to monitor tank levels remotely or control the pump intelligently. This project aims to develop an automated water tank system using ESP32, which monitors the roof and ground tank levels, controls the pump automatically, and uploads real-time data to a cloud database for remote access and monitoring.
+    </p>
+  </section>
+
+  <section>
+    <strong>Devices & Tasks:</strong>
+    <table>
+      <tr>
+        <th>Device / Component</th>
+        <th>Task / Function</th>
+      </tr>
+      <tr>
+        <td>Ultrasonic Sensor</td>
+        <td>Measures water level (distance to water surface)</td>
+      </tr>
+      <tr>
+        <td>Float Switch</td>
+        <td>Detects minimum/maximum water level (safety cutoff)</td>
+      </tr>
+      <tr>
+        <td>ESP32</td>
+        <td>Main controller, data upload</td>
+      </tr>
+      <tr>
+        <td>Water Pump (Relay)</td>
+        <td>Transfers water between tanks</td>
+      </tr>
+      <tr>
+        <td>LED Indicator</td>
+        <td>Status display (tank full/empty)</td>
+      </tr>
+      <tr>
+        <td>Buzzer (optional)</td>
+        <td>Alarm for critical water levels</td>
+      </tr>
+    </table>
+  </section>
+
+  <section>
+    <strong>Project Description:</strong>
+    <ol>
+      <li>Ultrasonic sensor continuously measures the water level of the rooftop tank.</li>
+      <li>Float switch acts as a safety to detect overflow or dry-tank condition.</li>
+      <li>ESP32 processes sensor readings and uploads them to a cloud database for remote monitoring.</li>
+      <li>The water pump is turned ON or OFF automatically based on real-time sensor feedback.</li>
+      <li>LED and (optional) buzzer indicate tank states (e.g., full/empty/low/high water).</li>
+      <li>System prevents overflows, dry runs, and energy wastage—requiring minimal human intervention.</li>
+    </ol>
+  </section>
+
+  <section>
+    <strong>Poster:</strong>
+    <p>
+      <a href="#" target="_blank">Download Project Poster</a>
+    </p>
+    <p>
+      <img src="../poster/A12.jpg" alt="Project Poster" style="max-width:100%; height:auto; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+    </p>
+  </section>
+
+  <section>
+    <strong>Video Demonstration</strong>
+    <center>
+      <iframe width="560" height="315" src="https://www.youtube.com/embed/-4NKOYyb-Fk" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+    </center>
+  </section>
+
+  <section>
+    <strong>ESP32 Code:</strong>
+    <pre>
+#include &lt;WiFi.h&gt;
+#include &lt;HTTPClient.h&gt;
+#include &lt;ArduinoJson.h&gt;
+
+const char* ssid = "abir";
+const char* password = "12345678";
+
+const char* serverHost = "ipe20-buet.top";
+const char* endpoint = "/get_data.php";
+
+const char* groupName = "groupA12";
+const char* sensorName = "Distance";
+const char* passcode = "passA12";
+
+#define TRIG_PIN 33
+#define ECHO_PIN 26
+#define FLOAT_SWITCH_PIN 32
+#define LED_PIN 25
+#define RELAY_PIN 27
+
+WiFiClient client;
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(TRIG_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
+  pinMode(FLOAT_SWITCH_PIN, INPUT_PULLUP);
+  pinMode(LED_PIN, OUTPUT);
+  pinMode(RELAY_PIN, OUTPUT);
+
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) { delay(300); }
+}
+
+float measureDistance() {
+  digitalWrite(TRIG_PIN, LOW);
+  delayMicroseconds(2);
+  digitalWrite(TRIG_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG_PIN, LOW);
+
+  long duration = pulseIn(ECHO_PIN, HIGH, 30000);
+  if (duration == 0) return -1.0;
+
+  float distance = duration * 0.034 / 2;
+  return distance;
+}
+
+void sendToServer(float distance) {
+  if (WiFi.status() != WL_CONNECTED) return;
+  HTTPClient http;
+  String url = String("http://") + serverHost + endpoint +
+    "?g=" + groupName +
+    "&sn=" + sensorName +
+    "&sd=" + String(distance, 2) +
+    "&p=" + passcode +
+    "&format=json";
+
+  http.begin(client, url);
+  int httpCode = http.GET();
+  if (httpCode > 0) {
+    String response = http.getString();
+    StaticJsonDocument<256> doc;
+    DeserializationError err = deserializeJson(doc, response);
+    if (!err) { int feedback = doc["binary_feedback"] | 0; }
+  }
+  http.end();
+}
+
+void loop() {
+  float distance = measureDistance();
+  if (distance > 0 && distance < 500) sendToServer(distance);
+
+  int floatState = digitalRead(FLOAT_SWITCH_PIN);
+  if (floatState == LOW) {
+    digitalWrite(LED_PIN, HIGH);
+    digitalWrite(RELAY_PIN, LOW);
+  } else {
+    digitalWrite(LED_PIN, LOW);
+    digitalWrite(RELAY_PIN, HIGH);
+  }
+  delay(5000);
+}
+    </pre>
+  </section>
+
+  <section>
+    <strong>Sensor Data Visualization:</strong><br>
+    <label for="sensor_name">Select Sensor:</label>
+    <select id="sensor_name" onchange="loadGraph()">
+      <option value="">Loading sensors...</option>
+    </select>
+    <canvas id="myChart" width="600" height="300"></canvas>
+  </section>
+
+  <script>
+    let chart = null;
+    const groupName = 'groupA12';
+    async function loadSensors() {
+      try {
+        const response = await fetch(`show_data.php?mode=names&group=${groupName}`);
+        if (!response.ok) throw new Error('Network response was not ok');
+        const sensors = await response.json();
+        let dropdown = document.getElementById('sensor_name');
+        dropdown.innerHTML = "";
+        if (sensors.length === 0) {
+          dropdown.innerHTML = '<option value="">No sensors found</option>';
+          return;
+        }
+        sensors.forEach(sensor => {
+          let opt = document.createElement('option');
+          opt.value = sensor;
+          opt.textContent = sensor;
+          dropdown.appendChild(opt);
+        });
+        dropdown.value = sensors[0];
+        loadGraph();
+      } catch (error) {
+        alert('Failed to load sensor list.');
+      }
+    }
+    async function loadGraph() {
+      const sensorName = document.getElementById('sensor_name').value;
+      if (!sensorName) return;
+      try {
+        const response = await fetch(`show_data.php?mode=data&group=${groupName}&sensor_name=${encodeURIComponent(sensorName)}`);
+        if (!response.ok) throw new Error('Network response was not ok');
+        const data = await response.json();
+        if (data.error) {
+          alert(data.error);
+          return;
+        }
+        const ctx = document.getElementById('myChart').getContext('2d');
+        if(chart) chart.destroy();
+        chart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: data.timestamps,
+            datasets: [{
+              label: `${sensorName} Data`,
+              data: data.values,
+              borderColor: '#8B0000',
+              backgroundColor: 'rgba(139,0,0,0.1)',
+              fill: true,
+              tension: 0.4
+            }]
+          },
+          options: {
+            responsive: true,
+            scales: {
+              x: { title: { display: true, text: 'Timestamp' } },
+              y: { title: { display: true, text: 'Sensor Data' }, beginAtZero: true }
+            }
+          }
+        });
+      } catch (error) {
+        alert('Failed to load sensor data.');
+      }
+    }
+    loadSensors();
+  </script>
+</body>
+</html>

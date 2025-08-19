@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>IoT-Driven Liquid Monitoring and Control System (Group B5)</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.0.0"></script>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+    <h1>Group B5</h1>
+    <h2>IoT-Driven Liquid Monitoring and Control System</h2>
+
+    <section>
+      <strong>Group Members:</strong>
+      <ul>
+        <li>Ananya Halder</li>
+        <li>Pratim Dash</li>
+        <li>Shimanto Kumar Anik</li>
+        <li>Tasnim Binte Tareque Tabita</li>
+        <li>Badhan Kumar Mondol</li>
+      </ul>
+    </section>
+
+    <section>
+      <strong>Problem Statement:</strong>
+      <p>
+        In industrial processes, water management systems, and chemical plants, accurate monitoring of liquid parameters such as level, temperature, and flow rate is essential for safety, quality control, and efficiency. Manual monitoring is often inaccurate and time-consuming, leading to delays or unsafe conditions. A sensor-based automated system can continuously monitor these parameters and send real-time data for process control or alert systems, reducing human error and operational risk.
+      </p>
+    </section>
+
+    <section>
+      <strong>Devices & Tasks:</strong>
+      <table>
+        <tr>
+          <th>Device / Component</th>
+          <th>Quantity</th>
+          <th>Task / Function</th>
+        </tr>
+        <tr>
+          <td>HC-SR04 Ultrasonic Sensor</td>
+          <td>1</td>
+          <td>Measures liquid level by calculating distance to the surface</td>
+        </tr>
+        <tr>
+          <td>DS18B20 Digital Temperature Sensor</td>
+          <td>1</td>
+          <td>Monitors liquid or tank temperature</td>
+        </tr>
+        <tr>
+          <td>YF-S201 Flow Sensor</td>
+          <td>1</td>
+          <td>Measures liquid flow rate (liters/min)</td>
+        </tr>
+        <tr>
+          <td>Solenoid Valve</td>
+          <td>1</td>
+          <td>Controls fluid flow (automatic shut-off/on)</td>
+        </tr>
+        <tr>
+          <td>Relay Module</td>
+          <td>1</td>
+          <td>Controls motors or heaters</td>
+        </tr>
+        <tr>
+          <td>DC Water Pump</td>
+          <td>1</td>
+          <td>Pumps or circulates liquid as needed</td>
+        </tr>
+        <tr>
+          <td>LCD Display / OLED</td>
+          <td>1</td>
+          <td>Shows real-time readings</td>
+        </tr>
+        <tr>
+          <td>Arduino UNO / ESP32 / Raspberry Pi</td>
+          <td>1</td>
+          <td>Collects, processes, and sends sensor data</td>
+        </tr>
+        <tr>
+          <td>Jumper Wires, Breadboard, Power Module</td>
+          <td>Multiple</td>
+          <td>System connections and power distribution</td>
+        </tr>
+      </table>
+    </section>
+
+    <section>
+      <strong>Project Description:</strong>
+      <ol>
+        <li>The HC-SR04 ultrasonic sensor is placed at the top of the tank to measure the liquid level.</li>
+        <li>The DS18B20 sensor measures and reports the temperature of the liquid or tank.</li>
+        <li>The YF-S201 flow sensor generates pulses as water flows, used to compute flow rate and total liters dispensed.</li>
+        <li>Data is collected and processed by an Arduino/ESP32/Raspberry Pi, displayed locally and sent to a cloud server for remote monitoring.</li>
+        <li>Actuators such as solenoid valves and pumps are controlled automatically based on sensor data to maintain safe and efficient operation.</li>
+        <li>The LCD/OLED screen provides a real-time local display of all key parameters for operator visibility.</li>
+      </ol>
+    </section>
+
+    <section>
+      <strong>Video Demonstration</strong>
+      <center>
+        <iframe width="380" height="680"
+          src="https://www.youtube.com/embed/5hW-Ix7Pcj4"
+          title="IoT-Driven Liquid Monitoring and Control System"
+          frameborder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          referrerpolicy="strict-origin-when-cross-origin"
+          allowfullscreen>
+        </iframe>
+      </center>
+    </section>
+
+
+    <section>
+      <strong>Poster:</strong>
+      <p>
+        <a href="../poster/B5.png" target="_blank">Download Project Poster</a>
+      </p>
+      <p>
+        <img src="../poster/B5.jpg" alt="Project Poster" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+      </p>
+    </section>
+
+
+    <section>
+      <strong>Arduino Code (Flow + OLED):</strong>
+      <pre>
+#include &lt;Wire.h&gt;
+#include &lt;Adafruit_GFX.h&gt;
+#include &lt;Adafruit_SSD1306.h&gt;
+
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+
+// Water Flow Sensor
+const int flowSensorPin = 2;
+volatile int pulseCount = 0;
+float calibrationFactor = 4.5;
+
+unsigned long oldTime = 0;
+float flowRate = 0;
+float totalLitres = 0;
+
+void pulseCounter() {
+  pulseCount++;
+}
+
+void setup() {
+  Serial.begin(9600);
+  pinMode(flowSensorPin, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(flowSensorPin), pulseCounter, FALLING);
+  if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+    Serial.println(F("OLED not found"));
+    while(1);
+  }
+  display.clearDisplay();
+  display.display();
+}
+
+void loop() {
+  if (millis() - oldTime &gt; 1000) {
+    detachInterrupt(digitalPinToInterrupt(flowSensorPin));
+    flowRate = ((1000.0 / (millis() - oldTime)) * pulseCount) / calibrationFactor;
+    oldTime = millis();
+    float litres = (flowRate / 60.0);
+    totalLitres += litres;
+    pulseCount = 0;
+    // Draw UI
+    display.clearDisplay();
+    // Header
+    display.setTextSize(1);
+    display.setTextColor(SSD1306_WHITE);
+    display.setCursor(0, 0);
+    display.println(" Water Flow Monitor ");
+    display.drawLine(0, 10, 128, 10, SSD1306_WHITE);
+    display.setTextSize(2);
+    display.setCursor(0, 16);
+    display.print(flowRate, 1);
+    display.setTextSize(1);
+    display.setCursor(100, 22);
+    display.println("L/m");
+    display.setTextSize(1);
+    display.setCursor(0, 42);
+    display.print("Total: ");
+    display.setTextSize(2);
+    display.setCursor(60, 36);
+    display.print(totalLitres, 1);
+    display.setTextSize(1);
+    display.setCursor(112, 44);
+    display.println("L");
+    display.display();
+    attachInterrupt(digitalPinToInterrupt(flowSensorPin), pulseCounter, FALLING);
+  }
+}
+      </pre>
+    </section>
+
+    <section>
+      <strong>Arduino Code (Temperature + LCD):</strong>
+      <pre>
+#include &lt;Wire.h&gt;
+#include &lt;LiquidCrystal_I2C.h&gt;
+#include &lt;OneWire.h&gt;
+#include &lt;DallasTemperature.h&gt;
+
+#define ONE_WIRE_BUS 14  // D5 (GPIO 14) for DS18B20
+#define I2C_SDA 4         // D2 (GPIO 4) for LCD
+#define I2C_SCL 5         // D1 (GPIO 5) for LCD
+
+OneWire oneWire(ONE_WIRE_BUS);
+DallasTemperature sensors(&oneWire);
+LiquidCrystal_I2C lcd(0x27, 16, 2); // I2C address 0x27, 16x2 LCD
+
+void setup() {
+  Wire.begin(I2C_SDA, I2C_SCL);
+  lcd.begin(16, 2);
+  lcd.backlight();
+  sensors.begin();
+  lcd.setCursor(0, 0);
+  lcd.print("Temp Sensor Init");
+  delay(1500);
+  lcd.clear();
+}
+
+void loop() {
+  sensors.requestTemperatures();
+  float tempC = sensors.getTempCByIndex(0);
+  lcd.setCursor(0, 0);
+  if (tempC == -127.0) {
+    lcd.print("Sensor Error    ");
+  } else {
+    lcd.print("Temp: ");
+    lcd.print(tempC, 1);
+    lcd.print((char)223);
+    lcd.print("C   ");
+  }
+  delay(1000);
+}
+      </pre>
+    </section>
+
+    <section>
+      <strong>Sensor Data Visualization:</strong><br>
+      <label for="sensor_name">Select Sensor:</label>
+      <select id="sensor_name" onchange="loadGraph()">
+        <option value="">Loading sensors...</option>
+      </select>
+      <canvas id="myChart" width="600" height="300"></canvas>
+    </section>
+
+  <script>
+    let chart = null;
+    const threshold = 100;
+    async function loadSensors() {
+      try {
+        const response = await fetch('show_data.php?mode=names&group=groupB5');
+        if (!response.ok) throw new Error('Network response was not ok');
+        const sensors = await response.json();
+        let dropdown = document.getElementById('sensor_name');
+        dropdown.innerHTML = "";
+        if (sensors.length === 0) {
+          dropdown.innerHTML = '<option value="">No sensors found</option>';
+          return;
+        }
+        sensors.forEach(sensor => {
+          let opt = document.createElement('option');
+          opt.value = sensor;
+          opt.textContent = sensor;
+          dropdown.appendChild(opt);
+        });
+        dropdown.value = sensors[0];
+        loadGraph();
+      } catch (error) {
+        alert('Failed to load sensor list.');
+      }
+    }
+
+    async function loadGraph() {
+      const sensorName = document.getElementById('sensor_name').value;
+      if (!sensorName) return;
+      try {
+        const response = await fetch(`show_data.php?mode=data&group=groupB5&sensor_name=${encodeURIComponent(sensorName)}`);
+        if (!response.ok) throw new Error('Network response was not ok');
+        const data = await response.json();
+        if (data.error) {
+          alert(data.error);
+          return;
+        }
+        const timestamps = data.timestamps.slice(-50);
+        const values = data.values.slice(-50);
+        const below = [], above = [];
+        values.forEach((value, i) => {
+          if (value <= threshold) {
+            below[i] = value; above[i] = null;
+          } else {
+            below[i] = null; above[i] = value;
+          }
+        });
+        const ctx = document.getElementById('myChart').getContext('2d');
+        if (chart) chart.destroy();
+        chart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: timestamps,
+            datasets: [
+              {
+                label: '≤ Threshold',
+                data: below,
+                borderColor: '#8B0000',
+                backgroundColor: 'rgba(139,0,0,0.1)',
+                fill: true,
+                tension: 0.4
+              },
+              {
+                label: '> Threshold',
+                data: above,
+                borderColor: '#FF0000',
+                backgroundColor: 'rgba(255,0,0,0.1)',
+                fill: true,
+                tension: 0.4
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            scales: {
+              x: { title: { display: true, text: 'Timestamp' } },
+              y: { title: { display: true, text: 'Sensor Data' }, beginAtZero: true }
+            },
+            plugins: {
+              annotation: {
+                annotations: {
+                  thresholdLine: {
+                    type: 'line',
+                    yMin: threshold,
+                    yMax: threshold,
+                    borderColor: '#A52A2A',
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    label: {
+                      content: `Threshold: ${threshold}`,
+                      enabled: true,
+                      position: 'end'
+                    }
+                  }
+                }
+              }
+            }
+          }
+        });
+      } catch (error) {
+        alert('Failed to load sensor data.');
+      }
+    }
+    loadSensors();
+  </script>
+</body>
+</html>

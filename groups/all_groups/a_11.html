@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Smart Monitoring System for Storage Units (Group A11)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+  <h1>Group A11</h1>
+  <h2>Smart Monitoring System for Storage Units</h2>
+
+  <section>
+    <strong>Group Members:</strong>
+    <ul>
+      <li>09</li>
+      <li>21</li>
+      <li>48</li>
+      <li>55</li>
+    </ul>
+  </section>
+
+  <section>
+    <strong>Problem Statement:</strong>
+    <p>
+      Storage units often lack real-time environmental monitoring and intrusion detection, putting sensitive or valuable items at risk. There is a need for a low-cost, sensor-based solution that ensures safe storage conditions and alerts in case of unauthorized access.
+    </p>
+  </section>
+
+  <section>
+    <strong>Sensors Used:</strong>
+    <ul>
+      <li>DHT11 – Temperature and Humidity Sensor</li>
+      <li>HC-SR04 – Ultrasonic Sensor</li>
+    </ul>
+  </section>
+
+  <section>
+    <strong>Actuators Used:</strong>
+    <ul>
+      <li>White LED (for temperature alerts)</li>
+      <li>Yellow LED (for humidity alerts)</li>
+      <li>Buzzer (for intrusion alerts)</li>
+    </ul>
+  </section>
+
+  <section>
+    <strong>Project Description:</strong>
+    <p>
+      The system was built using two key sensor modules integrated with an Arduino microcontroller:
+    </p>
+    <ul>
+      <li>
+        <strong>Environmental Monitoring (DHT11 Sensor):</strong> The DHT11 sensor continuously measures temperature and humidity.
+        If temperature exceeds 35°C or drops below 25°C, a white LED activates. If humidity rises above 60% or falls below 40%, the yellow LED also turns on. These thresholds help maintain safe environmental conditions inside the storage unit.
+      </li>
+      <li>
+        <strong>Intrusion Detection (Ultrasonic Sensor):</strong> An HC-SR04 ultrasonic sensor detects movement or objects within 50 cm. If triggered, it activates a buzzer to produce an audible alert. This provides a basic yet effective security layer against unauthorized access.
+      </li>
+    </ul>
+    <p>
+      The entire system was first simulated and then implemented on hardware using the Arduino IDE.
+    </p>
+  </section>
+
+  <section>
+    <strong>Poster:</strong>
+    <p>
+      <a href="#" target="_blank">Download Project Poster</a>
+    </p>
+    <p>
+      <img src="../poster/A11.jpg" alt="Project Poster" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+    </p>
+  </section>
+    <section>
+  <strong>Arduino Code:</strong>
+  <pre>
+#include &lt;DHT.h&gt;
+
+#define DHTPIN 2
+#define DHTTYPE DHT11
+#define TRIG_PIN 3
+#define ECHO_PIN 4
+#define BUZZER_DHT 5
+#define BUZZER_DIST 6
+
+#define TEMP_LIGHT 7
+#define HUM_LIGHT 8
+
+DHT dht(DHTPIN, DHTTYPE);
+
+void setup() {
+  Serial.begin(9600);        // For debug via USB
+  Serial2.begin(9600);       // Communication with ESP32
+  dht.begin();
+
+  pinMode(TRIG_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
+  pinMode(BUZZER_DHT, OUTPUT);
+  pinMode(BUZZER_DIST, OUTPUT);
+  pinMode(TEMP_LIGHT, OUTPUT);
+  pinMode(HUM_LIGHT, OUTPUT);
+}
+
+void loop() {
+  float temp = dht.readTemperature();
+  float hum = dht.readHumidity();
+
+  if (isnan(temp) || isnan(hum)) {
+    Serial.println("❌ Failed to read from DHT");
+    return;
+  }
+
+  // HC-SR04 distance measurement
+  digitalWrite(TRIG_PIN, LOW);
+  delayMicroseconds(2);
+  digitalWrite(TRIG_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG_PIN, LOW);
+
+  long duration = pulseIn(ECHO_PIN, HIGH); // timeout 30ms
+  float distance = duration * 0.034 / 2.0 ;
+
+  // Logic: DHT buzzer ON if temp or hum out of range
+  if (temp > 35 || temp < 25 || hum < 40 || hum > 60) {
+    digitalWrite(BUZZER_DHT, HIGH);
+  } else {
+    digitalWrite(BUZZER_DHT, LOW);
+  }
+
+  // NEW: Separate lights for temperature and humidity status
+  digitalWrite(TEMP_LIGHT, (temp > 35 || temp < 25) ? HIGH : LOW);
+  digitalWrite(HUM_LIGHT, (hum < 40 || hum > 60) ? HIGH : LOW);
+
+  // Logic: Distance buzzer ON if object within 50 cm
+  if (distance > 0 && distance <= 50) {
+    digitalWrite(BUZZER_DIST, HIGH);
+  } else {
+    digitalWrite(BUZZER_DIST, LOW);
+  }
+
+  // Send data to ESP32 and Serial Monitor
+  String payload = String(temp) + "," + String(hum) + "," + String(distance, 2);
+  Serial2.println(payload);
+  Serial.println(payload);
+
+  delay(1000);
+}
+  </pre>
+</section>
+<section>
+  <strong>Video Demonstration:</strong>
+  <center>
+    <!-- Embedded YouTube video -->
+    <iframe width="560" height="315" src="https://www.youtube.com/embed/tYrV8HLFXnY" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+  </center>
+</section>
+
+  <section>
+    <strong>Sensor Data Visualization:</strong><br>
+    <label for="sensor_name">Select Sensor:</label>
+    <select id="sensor_name" onchange="loadGraph()">
+      <option value="">Loading sensors...</option>
+    </select>
+    <canvas id="myChart" width="600" height="300"></canvas>
+  </section>
+
+  <script>
+    let chart = null;
+    const groupName = 'groupA11';
+    async function loadSensors() {
+      try {
+        const response = await fetch(`show_data.php?mode=names&group=${groupName}`);
+        if (!response.ok) throw new Error('Network response was not ok');
+        const sensors = await response.json();
+        let dropdown = document.getElementById('sensor_name');
+        dropdown.innerHTML = "";
+        if (sensors.length === 0) {
+          dropdown.innerHTML = '<option value="">No sensors found</option>';
+          return;
+        }
+        sensors.forEach(sensor => {
+          let opt = document.createElement('option');
+          opt.value = sensor;
+          opt.textContent = sensor;
+          dropdown.appendChild(opt);
+        });
+        dropdown.value = sensors[0];
+        loadGraph();
+      } catch (error) {
+        alert('Failed to load sensor list.');
+      }
+    }
+
+    async function loadGraph() {
+      const sensorName = document.getElementById('sensor_name').value;
+      if (!sensorName) return;
+      try {
+        const response = await fetch(`show_data.php?mode=data&group=${groupName}&sensor_name=${encodeURIComponent(sensorName)}`);
+        if (!response.ok) throw new Error('Network response was not ok');
+        const data = await response.json();
+        if (data.error) {
+          alert(data.error);
+          return;
+        }
+        const ctx = document.getElementById('myChart').getContext('2d');
+        if (chart) chart.destroy();
+        chart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: data.timestamps,
+            datasets: [{
+              label: `${sensorName} Data`,
+              data: data.values,
+              borderColor: '#8B0000',
+              backgroundColor: 'rgba(139,0,0,0.1)',
+              fill: true,
+              tension: 0.3
+            }]
+          },
+          options: {
+            scales: {
+              x: {
+                title: { display: true, text: 'Timestamp' }
+              },
+              y: {
+                title: { display: true, text: 'Sensor Data' },
+                beginAtZero: true
+              }
+            }
+          }
+        });
+      } catch (error) {
+        alert('Failed to load sensor data.');
+      }
+    }
+    loadSensors();
+  </script>
+</body>
+</html>

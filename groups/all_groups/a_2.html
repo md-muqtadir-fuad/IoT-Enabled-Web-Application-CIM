@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Industrial Machine Vibration and Overheat Monitoring (Group A2)</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.0.0"></script>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+    <h1>Group A2</h1>
+    <h2>Industrial Machine Vibration and Overheat Monitoring for Predictive Maintenance with ML</h2>
+
+    <section>
+      <strong>Group Members:</strong>
+      <ul>
+        <li>50</li>
+        <li>51</li>
+        <li>52</li>
+        <li>58</li>
+        <li>59</li>
+      </ul>
+      <p><b>Team Leader:</b> Nafiun Hasan (2008050)</p>
+    </section>
+
+    <section>
+      <strong>Problem Statement:</strong>
+      <p>
+        Detects abnormal vibration and overheating in rotating machinery and shuts down the machine as well as alerts operators automatically.
+      </p>
+    </section>
+
+    <section>
+      <strong>Devices & Tasks:</strong>
+      <table>
+        <tr>
+          <th>Device / Component</th>
+          <th>Quantity</th>
+          <th>Task / Function</th>
+        </tr>
+        <tr>
+          <td>MPU6050 Vibration Sensor</td>
+          <td>1</td>
+          <td>Measures vibration (acceleration & gyro) of machine</td>
+        </tr>
+        <tr>
+          <td>DHT22 Temperature Sensor</td>
+          <td>1</td>
+          <td>Monitors ambient or surface temperature</td>
+        </tr>
+        <tr>
+          <td>ESP32</td>
+          <td>1</td>
+          <td>Main controller for data processing and cloud upload</td>
+        </tr>
+        <tr>
+          <td>Buzzer</td>
+          <td>1</td>
+          <td>Audible alarm on fault detection</td>
+        </tr>
+        <tr>
+          <td>LED Indicator</td>
+          <td>1</td>
+          <td>Visual fault indication</td>
+        </tr>
+        <tr>
+          <td>Relay / Shutdown Control</td>
+          <td>1</td>
+          <td>Stops machine in case of dangerous fault</td>
+        </tr>
+      </table>
+    </section>
+
+    <section>
+      <strong>Project Description:</strong>
+      <ol>
+        <li>Vibration and temperature data is collected in real time from the MPU6050 and DHT22 sensors.</li>
+        <li>ESP32 analyzes data, triggers alert and shutdown if vibration/temperature exceeds safe threshold.</li>
+        <li>Data is uploaded to a remote server for visualization, monitoring, and further analysis.</li>
+        <li>System can trigger Telegram alerts to maintenance staff for critical faults.</li>
+        <li>Future: Data can be integrated with Machine Learning models for predictive maintenance.</li>
+      </ol>
+    </section>
+
+    <section>
+      <strong>Poster:</strong>
+      <p>
+        <a href="../poster/A2.jpg" target="_blank">Download Project Poster</a>
+      </p>
+      <p>
+        <img src="../poster/A2.jpg" alt="Project Poster" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+      </p>
+    </section>
+
+    <section>
+      <strong>ESP32 Code:</strong>
+      <pre>
+#include &lt;WiFi.h&gt;
+#include &lt;HTTPClient.h&gt;
+#include &lt;Adafruit_MPU6050.h&gt;
+#include &lt;Adafruit_Sensor.h&gt;
+#include &lt;DHT.h&gt;
+
+#define DHTPIN 5
+#define DHTTYPE DHT22
+#define LED_PIN 27
+#define BUZZER_PIN 14
+
+const char* ssid = "Obito_Uchiha";
+const char* password = "password";
+const char* server = "http://ipe20-buet.top/get_data.php";
+const char* group = "groupA2";
+const char* pass = "passA2";
+const char* telegram_url = "https://api.telegram.org/botXXXXXXXX/sendMessage";
+const char* chat_id = "XXXXXXXX"; // Update with your real Telegram bot and chat ID
+
+DHT dht(DHTPIN, DHTTYPE);
+Adafruit_MPU6050 mpu;
+
+float temperatureThreshold = 35.0;
+float gyroThreshold = 0.05;
+float accelThreshold = 4.0;
+
+void setup() {
+  Serial.begin(115200);
+  dht.begin();
+
+  pinMode(LED_PIN, OUTPUT);
+  digitalWrite(LED_PIN, LOW);
+  pinMode(BUZZER_PIN, OUTPUT);
+  digitalWrite(BUZZER_PIN, LOW);
+
+  WiFi.begin(ssid, password);
+  Serial.print("Connecting to WiFi");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\nWiFi connected");
+
+  if (!mpu.begin()) {
+    Serial.println("MPU6050 not found!");
+    while (1);
+  }
+}
+
+void loop() {
+  float temp = dht.readTemperature();
+  float hum = dht.readHumidity();
+
+  sensors_event_t acc, gyro, tempSensor;
+  mpu.getEvent(&acc, &gyro, &tempSensor);
+
+  Serial.printf("Temp: %.2f°C | Hum: %.2f%%\n", temp, hum);
+  Serial.printf("Acc: X=%.2f Y=%.2f Z=%.2f\n", acc.acceleration.x, acc.acceleration.y, acc.acceleration.z);
+  Serial.printf("Gyro: X=%.2f Y=%.2f Z=%.2f\n", gyro.gyro.x, gyro.gyro.y, gyro.gyro.z);
+
+  sendToServer("temperature", String(temp));
+  sendToServer("humidity", String(hum));
+  sendToServer("accX", String(acc.acceleration.x));
+  sendToServer("accY", String(acc.acceleration.y));
+  sendToServer("accZ", String(acc.acceleration.z));
+  sendToServer("gyroX", String(gyro.gyro.x));
+  sendToServer("gyroY", String(gyro.gyro.y));
+  sendToServer("gyroZ", String(gyro.gyro.z));
+
+  // Check for alerts
+  if (temp > temperatureThreshold || 
+      abs(gyro.gyro.x) > gyroThreshold || 
+      abs(gyro.gyro.y) > gyroThreshold || 
+      abs(gyro.gyro.z) > gyroThreshold ||
+      abs(acc.acceleration.x) > accelThreshold ||
+      abs(acc.acceleration.y) > accelThreshold ||
+      abs(acc.acceleration.z) > accelThreshold) {
+    triggerAlert(temp, gyro.gyro.x, gyro.gyro.y, gyro.gyro.z,
+                 acc.acceleration.x, acc.acceleration.y, acc.acceleration.z);
+  }
+
+  delay(5000);
+}
+
+void sendToServer(const String& sensorName, const String& sensorData) {
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+    String url = String(server) + "?g=" + group + "&sn=" + sensorName + "&sd=" + sensorData + "&p=" + pass + "&format=json";
+
+    http.begin(url);
+    int httpCode = http.GET();
+
+    if (httpCode > 0) {
+      String payload = http.getString();
+      Serial.println("Server response: " + payload);
+    } else {
+      Serial.printf("HTTP error: %d\n", httpCode);
+    }
+    http.end();
+  } else {
+    Serial.println("WiFi not connected");
+  }
+}
+
+void triggerAlert(float temp, float gx, float gy, float gz, float ax, float ay, float az) {
+  Serial.println("Threshold exceeded!");
+
+  digitalWrite(LED_PIN, HIGH);
+  digitalWrite(BUZZER_PIN, HIGH);
+  delay(3000);
+  digitalWrite(LED_PIN, LOW);
+  digitalWrite(BUZZER_PIN, LOW);
+
+  String message = "ALERT!\nTemp: " + String(temp) + "°C\nGyroX: " + String(gx) + 
+                   "\nGyroY: " + String(gy) + "\nGyroZ: " + String(gz) +
+                   "\nAccX: " + String(ax) + "\nAccY: " + String(ay) + "\nAccZ: " + String(az);
+  sendTelegramAlert(message);
+}
+
+void sendTelegramAlert(String message) {
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+    String encodedMessage = urlEncode(message);
+    String fullUrl = String(telegram_url) + "?chat_id=" + chat_id + "&text=" + encodedMessage;
+
+    http.begin(fullUrl);
+    int httpCode = http.GET();
+
+    if (httpCode > 0) {
+      String response = http.getString();
+      Serial.println("Telegram response: " + response);
+    } else {
+      Serial.printf("Telegram send failed: %d\n", httpCode);
+    }
+    http.end();
+  } else {
+    Serial.println("WiFi not connected");
+  }
+}
+
+String urlEncode(const String &str) {
+  String encoded = "";
+  char c;
+  char code0, code1;
+  for (int i = 0; i < str.length(); i++) {
+    c = str.charAt(i);
+    if (isalnum(c)) {
+      encoded += c;
+    } else {
+      code1 = (c & 0xf) + '0';
+      if ((c & 0xf) > 9) code1 = (c & 0xf) - 10 + 'A';
+      code0 = ((c >> 4) & 0xf) + '0';
+      if (((c >> 4) & 0xf) > 9) code0 = ((c >> 4) & 0xf) - 10 + 'A';
+      encoded += '%';
+      encoded += code0;
+      encoded += code1;
+    }
+  }
+  return encoded;
+}
+      </pre>
+    </section>
+
+    <section>
+        <strong>Video Demonstration</strong>
+        <center>
+          <iframe width="560" height="315" src="https://www.youtube.com/embed/nnwwfAzWwl0" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+        </center>
+    </section>
+    <section>
+      <strong>Sensor Data Visualization:</strong><br>
+      <label for="sensor_name">Select Sensor:</label>
+      <select id="sensor_name" onchange="loadGraph()">
+        <option value="">Loading sensors...</option>
+      </select>
+      <canvas id="myChart" width="600" height="300"></canvas>
+    </section>
+
+  <script>
+    let chart = null;
+    const threshold = 1; // Adjust as needed for data splitting, or leave as 1 for now
+    async function loadSensors() {
+      try {
+        const response = await fetch('show_data.php?mode=names&group=groupA2');
+        if (!response.ok) throw new Error('Network response was not ok');
+        const sensors = await response.json();
+        let dropdown = document.getElementById('sensor_name');
+        dropdown.innerHTML = "";
+        if (sensors.length === 0) {
+          dropdown.innerHTML = '<option value="">No sensors found</option>';
+          return;
+        }
+        sensors.forEach(sensor => {
+          let opt = document.createElement('option');
+          opt.value = sensor;
+          opt.textContent = sensor;
+          dropdown.appendChild(opt);
+        });
+        dropdown.value = sensors[0];
+        loadGraph();
+      } catch (error) {
+        alert('Failed to load sensor list.');
+      }
+    }
+
+    async function loadGraph() {
+      const sensorName = document.getElementById('sensor_name').value;
+      if (!sensorName) return;
+      try {
+        const response = await fetch(`show_data.php?mode=data&group=groupA2&sensor_name=${encodeURIComponent(sensorName)}`);
+        if (!response.ok) throw new Error('Network response was not ok');
+        const data = await response.json();
+        if (data.error) {
+          alert(data.error);
+          return;
+        }
+        const timestamps = data.timestamps.slice(-50);
+        const values = data.values.slice(-50);
+        const below = [], above = [];
+        values.forEach((value, i) => {
+          if (value <= threshold) {
+            below[i] = value; above[i] = null;
+          } else {
+            below[i] = null; above[i] = value;
+          }
+        });
+        const ctx = document.getElementById('myChart').getContext('2d');
+        if (chart) chart.destroy();
+        chart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: timestamps,
+            datasets: [
+              {
+                label: '≤ Threshold',
+                data: below,
+                borderColor: '#8B0000',
+                backgroundColor: 'rgba(139,0,0,0.1)',
+                fill: true,
+                tension: 0.4
+              },
+              {
+                label: '> Threshold',
+                data: above,
+                borderColor: '#FF0000',
+                backgroundColor: 'rgba(255,0,0,0.1)',
+                fill: true,
+                tension: 0.4
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            scales: {
+              x: { title: { display: true, text: 'Timestamp' } },
+              y: { title: { display: true, text: 'Sensor Data' }, beginAtZero: true }
+            },
+            plugins: {
+              annotation: {
+                annotations: {
+                  thresholdLine: {
+                    type: 'line',
+                    yMin: threshold,
+                    yMax: threshold,
+                    borderColor: '#A52A2A',
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    label: {
+                      content: `Threshold: ${threshold}`,
+                      enabled: true,
+                      position: 'end'
+                    }
+                  }
+                }
+              }
+            }
+          }
+        });
+      } catch (error) {
+        alert('Failed to load sensor data.');
+      }
+    }
+    loadSensors();
+  </script>
+</body>
+</html>

@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Smart Sonar & Vibration Monitoring System (Group A6)</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+  <h1>Group A6</h1>
+  <h2>Smart Sonar & Vibration Sensor-Based Safety Monitoring System</h2>
+
+  <section>
+    <strong>Group Members:</strong>
+    <ul>
+      <li>[Member 1]</li>
+      <li>[Member 2]</li>
+      <li>[Member 3]</li>
+      <li>[Member 4]</li>
+      <li>[Member 5]</li>
+    </ul>
+  </section>
+
+  <section>
+    <strong>Problem Statement:</strong>
+    <p>
+      Manual inspection of vibration and proximity hazards is inefficient and unreliable in industrial and safety-critical areas. An IoT-based system using sonar and vibration sensors allows real-time remote monitoring and instant alerting, reducing risk and enabling predictive maintenance.
+    </p>
+  </section>
+
+  <section>
+    <strong>Devices & Tasks:</strong>
+    <table>
+      <tr>
+        <th>Device / Component</th>
+        <th>Quantity</th>
+        <th>Task / Function</th>
+      </tr>
+      <tr>
+        <td>HC-SR04 Ultrasonic Sensor</td>
+        <td>1</td>
+        <td>Measures distance to obstacles</td>
+      </tr>
+      <tr>
+        <td>ADXL345 Accelerometer</td>
+        <td>1</td>
+        <td>Detects abnormal vibration</td>
+      </tr>
+      <tr>
+        <td>Buzzer</td>
+        <td>1</td>
+        <td>Alerts if object is too close (&lt; 100cm)</td>
+      </tr>
+      <tr>
+        <td>ESP32/ESP8266</td>
+        <td>1</td>
+        <td>Uploads data to Firebase in real time</td>
+      </tr>
+      <tr>
+        <td>Arduino UNO</td>
+        <td>1</td>
+        <td>Sensor interface &amp; processing</td>
+      </tr>
+      <tr>
+        <td>Jumper Wires</td>
+        <td>Multiple</td>
+        <td>Connections</td>
+      </tr>
+    </table>
+  </section>
+
+  <section>
+    <strong>Project Description:</strong>
+    <ol>
+      <li>ADXL345 detects if vibration exceeds a threshold (0.3 m/s²).</li>
+      <li>HC-SR04 measures distance to nearest object.</li>
+      <li>Arduino sends "distance,vibrationFlag" to ESP.</li>
+      <li>Buzzer alerts if object is within 100cm.</li>
+      <li>ESP uploads data to Firebase for live dashboard and alerts.</li>
+    </ol>
+  </section>
+
+  <section>
+    <strong>Poster:</strong>
+    <p>
+      <a href="../poster/A6.jpg" target="_blank">Download Project Poster</a>
+    </p>
+    <p>
+      <img src="../poster/A6.jpg" alt="Project Poster" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+    </p>
+  </section>
+
+  <section>
+    <strong>Arduino Code:</strong>
+    <pre>
+#include &lt;Wire.h&gt;
+#include &lt;Adafruit_Sensor.h&gt;
+#include &lt;Adafruit_ADXL345_U.h&gt;
+
+Adafruit_ADXL345_Unified accel = Adafruit_ADXL345_Unified(12345);
+
+// Pins
+const int trigPin = 9;
+const int echoPin = 10;
+const int buzzerPin = 11;
+
+const float vibrationThreshold = 0.3;  // m/s²
+const unsigned long checkInterval = 1000;  // 1 second
+
+bool vibrationDetected = false;
+unsigned long lastCheckTime = 0;
+
+void setup() {
+  Serial.begin(9600);
+
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+  pinMode(buzzerPin, OUTPUT);
+
+  if (!accel.begin()) {
+    while (1);  // Stop if ADXL345 not found
+  }
+
+  accel.setRange(ADXL345_RANGE_16_G);
+}
+
+void loop() {
+  sensors_event_t event;
+  accel.getEvent(&event);
+
+  float totalAccel = sqrt(
+    event.acceleration.x * event.acceleration.x +
+    event.acceleration.y * event.acceleration.y +
+    event.acceleration.z * event.acceleration.z
+  );
+  float vibration = abs(totalAccel - 9.81);
+
+  if (vibration > vibrationThreshold) {
+    vibrationDetected = true;
+  }
+
+  // --- Every 1 second ---
+  if (millis() - lastCheckTime >= checkInterval) {
+    digitalWrite(trigPin, LOW);
+    delayMicroseconds(2);
+    digitalWrite(trigPin, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(trigPin, LOW);
+
+    long duration = pulseIn(echoPin, HIGH);
+    int distanceCM = duration * 0.034 / 2;
+
+    // --- Buzzer Control ---
+    if (distanceCM < 100) {
+      digitalWrite(buzzerPin, HIGH);
+    } else {
+      digitalWrite(buzzerPin, LOW);
+    }
+
+    // --- Serial Output for ESP32 ---
+    int vibrationFlag = vibrationDetected ? 1 : 0;
+    Serial.print(distanceCM);
+    Serial.print(",");
+    Serial.println(vibrationFlag);  // Binary 1 or 0
+
+    // Reset
+    vibrationDetected = false;
+    lastCheckTime = millis();
+  }
+
+  delay(20);  // Sample rate
+}
+    </pre>
+  </section>
+<section>
+  <h2 style="color:#8B0000;">Live Data: Sonar & Vibration Sensors (Firebase)</h2>
+  <table id="dataTable">
+    <thead>
+      <tr>
+        <th>Timestamp</th>
+        <th>Distance (cm)</th>
+        <th>Vibration</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  <canvas id="distanceChart" height="100"></canvas>
+  <canvas id="vibrationChart" height="60"></canvas>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    // --- Firebase Config ---
+    const firebaseConfig = {
+      apiKey: "AIzaSyB5kIjUA8KkfDWejmzC3cau4K6PeAdBJKg",
+      authDomain: "suiiiiiiiiiiii.firebaseapp.com",
+      databaseURL: "https://suiiiiiiiiiiii-default-rtdb.firebaseio.com",
+      projectId: "suiiiiiiiiiiii",
+      storageBucket: "suiiiiiiiiiiii.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // --- Charts ---
+    const distanceCtx = document.getElementById('distanceChart').getContext('2d');
+    const vibrationCtx = document.getElementById('vibrationChart').getContext('2d');
+
+    let distanceChart = new Chart(distanceCtx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [{
+          label: 'Distance (cm)',
+          data: [],
+          borderColor: '#8B0000',
+          backgroundColor: 'rgba(139,0,0,0.10)',
+          borderWidth: 2,
+          fill: true
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: {
+            min: 0,
+            max: 300,
+            title: { display: true, text: 'Distance (cm)' }
+          }
+        }
+      }
+    });
+
+    let vibrationChart = new Chart(vibrationCtx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [{
+          label: 'Vibration',
+          data: [],
+          borderColor: '#A52A2A',
+          backgroundColor: 'rgba(165,42,42,0.1)',
+          borderWidth: 2,
+          stepped: true
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: {
+            type: 'category',
+            labels: ['true', 'false'],
+            title: { display: true, text: 'Vibration' }
+          }
+        }
+      }
+    });
+
+    function fetchData() {
+      db.ref('/mehran').orderByKey().limitToLast(10).once('value', snapshot => {
+        const data = snapshot.val();
+        const tableBody = document.querySelector("#dataTable tbody");
+        tableBody.innerHTML = "";
+
+        const rows = [];
+        const labels = [];
+        const distances = [];
+        const vibrations = [];
+
+        if (data) {
+          const sortedKeys = Object.keys(data).sort();
+          sortedKeys.forEach(key => {
+            const entry = data[key];
+            const distance = entry.distance || 0;
+            const vibration = entry.vibration ? "true" : "false";
+            const timestamp = entry.timestamp || key;
+            const timeParts = timestamp.split('_');
+            const label = timeParts.length >= 6 ? `${timeParts[4]}:${timeParts[5]}` : timestamp;
+
+            rows.push(`<tr><td>${timestamp}</td><td>${distance}</td><td>${vibration}</td></tr>`);
+            labels.push(label);
+            distances.push(distance);
+            vibrations.push(vibration === "true" ? 1 : 0);
+          });
+        }
+
+        tableBody.innerHTML = rows.join('');
+        distanceChart.data.labels = labels;
+        distanceChart.data.datasets[0].data = distances;
+        distanceChart.update();
+
+        vibrationChart.data.labels = labels;
+        vibrationChart.data.datasets[0].data = vibrations;
+        vibrationChart.update();
+      });
+    }
+
+    fetchData();
+    setInterval(fetchData, 5000);
+  </script>
+</section>
+
+
+  <section>
+    <strong>Video Demonstration</strong>
+    <center>
+      <iframe width="560" height="315" src="https://www.youtube.com/embed/niR67DkOjWo?si=eCFRBL_Joqb1dHpC" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+    </center>
+  </section>
+</body>
+</html>

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="../style.css">
+  <title>Temperature and Vibration Monitoring System</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+  <h1>Group B11</h1>
+
+  <h2>Project Title: Temperature and Vibration Monitoring of Industrial Machineries</h2>
+
+  <h3>Group Members:</h3>
+  <ul>
+    <li>2008092</li>
+    <li>2008094</li>
+    <li>2008095</li>
+    <li>2008100</li>
+    
+  </ul>
+
+  <h3>Problem Statement</h3>
+  <p>
+    Unmonitored temperature and vibration in industrial machinery can lead to unexpected equipment failures, extended downtime, and safety hazards. Early detection is crucial to avoid costly disruptions.
+  </p>
+
+  <h3>Sensors Used</h3>
+  <ul>
+    <li>Temperature Sensor</li>
+    <li>Vibration Sensor</li>
+  </ul>
+
+  <h3>Actuators Used</h3>
+  <ul>
+    <li>Cooling Fan – activates when temperature exceeds safe limits</li>
+    <li>Bulb or Motor – simulates machinery shutdown in case of vibration anomalies</li>
+    <li>Buzzer or Red Light – alerts operators when thresholds are crossed</li>
+  </ul>
+
+  <h3>Project Description</h3>
+  <p>
+    This project involves building a real-time monitoring system for industrial machinery to track both temperature and vibration. Using appropriate sensors, the system gathers data continuously and analyzes it to detect potential faults early.
+  </p>
+  <p>
+    When temperature or vibration readings exceed predefined safety thresholds, the system:
+  </p>
+  <ul>
+    <li>Activates a cooling fan to prevent overheating</li>
+    <li>Simulates emergency shutdown using a bulb/motor</li>
+    <li>Triggers visual or audible alerts via buzzer or red light</li>
+  </ul>
+  <p>
+    The solution supports predictive maintenance by enabling operators to act on issues before they become critical, reducing equipment damage, production loss, and safety risks.
+  </p>
+ <!-- ================== Graph Section =================== -->
+<h3>Sensor Data Visualization</h3>
+
+<label for="sensor_name">Select Sensor:</label>
+<select id="sensor_name" onchange="loadGraph()">
+  <option value="">Loading sensors...</option>
+</select>
+
+<br><br>
+
+<canvas id="myChart" width="800" height="400"></canvas>
+
+<script>
+  let chart = null;
+  const groupName = 'groupB11';  // to update group
+
+  async function loadSensors() {
+    try {
+      const response = await fetch(`show_data.php?mode=names&group=${groupName}`);
+      if (!response.ok) throw new Error('Network response was not ok');
+      const sensors = await response.json();
+
+      let dropdown = document.getElementById('sensor_name');
+      dropdown.innerHTML = "";
+
+      if (sensors.length === 0) {
+        dropdown.innerHTML = '<option value="">No sensors found</option>';
+        return;
+      }
+
+      sensors.forEach(sensor => {
+        let opt = document.createElement('option');
+        opt.value = sensor;
+        opt.textContent = sensor;
+        dropdown.appendChild(opt);
+      });
+
+      dropdown.value = sensors[0];
+      loadGraph();
+    } catch (error) {
+      console.error('Error loading sensors:', error);
+      alert('Failed to load sensor list.');
+    }
+  }
+
+  async function loadGraph() {
+    const sensorName = document.getElementById('sensor_name').value;
+    if (!sensorName) return;
+
+    try {
+      const response = await fetch(`show_data.php?mode=data&group=${groupName}&sensor_name=${encodeURIComponent(sensorName)}`);
+      if (!response.ok) throw new Error('Network response was not ok');
+      const data = await response.json();
+
+      if (data.error) {
+        alert(data.error);
+        return;
+      }
+
+      const ctx = document.getElementById('myChart').getContext('2d');
+      if(chart) chart.destroy();
+
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: data.timestamps,
+          datasets: [{
+            label: `${sensorName} Data`,
+            data: data.values,
+            borderColor: 'rgba(75, 192, 192, 1)',
+            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+            fill: true,
+            tension: 0.3
+          }]
+        },
+        options: {
+          scales: {
+            x: {
+              title: { display: true, text: 'Timestamp' }
+            },
+            y: {
+              title: { display: true, text: 'Sensor Data' },
+              beginAtZero: true
+            }
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Error loading graph data:', error);
+      alert('Failed to load sensor data.');
+    }
+  }
+
+  loadSensors();
+</script>
+
+</body>
+</html>

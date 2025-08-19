@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contact Developers</title>
+  <!-- Google Font: Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primaryRed: '#94180f',
+            lightRed: '#bb3f38',
+            darkRed: '#7c140c',
+            accentRed: '#cc4a41',
+            lighterRed: '#e0908c',
+          },
+          animation: {
+            fadeIn: 'fadeIn 1s ease-out',
+            slideUp: 'slideUp 0.8s ease-out',
+            pulseGlow: 'pulseGlow 2s ease-in-out infinite',
+          },
+          keyframes: {
+            fadeIn: {
+              '0%': { opacity: '0' },
+              '100%': { opacity: '1' },
+            },
+            slideUp: {
+              '0%': { opacity: '0', transform: 'translateY(20px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' },
+            },
+            pulseGlow: {
+              '0%, 100%': { boxShadow: '0 0 10px rgba(148, 24, 15, 0.3)' },
+              '50%': { boxShadow: '0 0 20px rgba(148, 24, 15, 0.6)' },
+            },
+          },
+        },
+      },
+    }
+  </script>
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f3f4f6;
+      scroll-behavior: smooth;
+      margin: 0;
+      min-height: 100vh;
+      position: relative;
+      overflow-x: hidden;
+    }
+    .hero-bg {
+      background: linear-gradient(135deg, rgba(148, 24, 15, 0.8), rgba(187, 63, 56, 0.5)), url('https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80');
+      background-size: cover;
+      background-position: center;
+      background-attachment: fixed;
+    }
+    #particles {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: -1;
+    }
+    .particle {
+      position: absolute;
+      background: rgba(224, 144, 140, 0.4);
+      border-radius: 50%;
+      box-shadow: 0 0 6px rgba(224, 144, 140, 0.6);
+      animation: float 10s infinite linear;
+    }
+    .particle:nth-child(odd) {
+      width: 6px;
+      height: 6px;
+      animation-duration: 12s;
+    }
+    .particle:nth-child(even) {
+      width: 4px;
+      height: 4px;
+      animation-duration: 8s;
+    }
+    @keyframes float {
+      0% { transform: translateY(100vh) scale(1); opacity: 0.7; }
+      100% { transform: translateY(-100vh) scale(0.5); opacity: 0; }
+    }
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f3f4f6;
+      border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #94180f;
+      border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #7c140c;
+    }
+    html {
+      scrollbar-color: #94180f #f3f4f6;
+      scrollbar-width: thin;
+    }
+    nav {
+      background: linear-gradient(to right, #bb3f38, #94180f);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.75rem 2rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    nav .logo {
+      color: #fff;
+      font-size: 1.75rem;
+      font-weight: 700;
+      text-decoration: none;
+    }
+    nav .menu {
+      display: flex;
+      gap: 1.5rem;
+    }
+    nav .menu a {
+      color: #fff;
+      text-decoration: none;
+      font-size: 1.2rem;
+      padding: 0.5rem 1rem;
+      transition: background 0.3s, transform 0.3s;
+    }
+    nav .menu a:hover {
+      background: rgba(255,255,255,0.2);
+      border-radius: 0.5rem;
+      transform: scale(1.1);
+    }
+    .nav-toggle {
+      display: none;
+      flex-direction: column;
+      cursor: pointer;
+    }
+    .nav-toggle span {
+      background: #fff;
+      height: 3px;
+      width: 25px;
+      margin: 4px 0;
+      transition: all 0.3s ease;
+    }
+    @media(max-width:768px) {
+      .nav-toggle { display: flex; }
+      nav .menu {
+        position: absolute;
+        top: 60px; left: 0; right:0;
+        background: #94180f;
+        flex-direction: column;
+        align-items: center;
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.4s ease;
+      }
+      nav .menu.open { max-height: 300px; }
+    }
+    .btn-anim {
+      transition: all 0.3s ease;
+    }
+    .btn-anim:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(148, 24, 15, 0.3);
+    }
+    .developer-img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 12px;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      display: block;
+      margin: 0 auto;
+    }
+    .developer-img:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 20px rgba(148, 24, 15, 0.5);
+    }
+  </style>
+</head>
+<body>
+  <!-- Navigation Bar -->
+  <nav>
+    <a class="logo" href="http://ipe20-buet.top/">CIM Course</a>
+    <div class="nav-toggle" onclick="this.classList.toggle('active'); document.querySelector('nav .menu').classList.toggle('open');">
+      <span></span><span></span><span></span>
+    </div>
+    <div class="menu">
+      <a href="http://ipe20-buet.top/">Overview</a>
+      <a href="http://ipe20-buet.top/groups/group_info.html">Projects</a>
+      <a href="http://ipe20-buet.top/Sensor_data/data_info.html">Sensor Data</a>
+      <a href="#">Developers</a>
+    </div>
+  </nav>
+
+  <main class="container mx-auto p-4 md:p-8 w-full">
+    <section id="hero" class="hero-bg p-8 md:p-12 rounded-xl shadow-lg mb-8 text-center text-white animate-slide-up">
+      <h1 class="text-4xl md:text-5xl font-extrabold mb-4 animate-pulse-glow">Meet Developers</h1>
+      <p class="text-xl md:text-2xl mb-6">Passionate Innovators</p>
+    </section>
+
+    <section id="contact" class="mb-8 animate-fade-in w-full">
+      <h2 class="text-3xl font-bold text-[primaryRed] mb-6 text-center">Developers</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+        <!-- Developer 1: Abdullah Al Mazid -->
+        <div class="bg-white p-6 rounded-xl shadow-lg animate-slide-up">
+          <img src="./images/abdullah_meow.jpg" alt="Profile photo of Abdullah Al Mazid" class="developer-img mb-4">
+          <h3 class="text-2xl font-semibold text-[primaryRed] mb-2">Abdullah Al Mazid</h3>
+          <p class="text-gray-700 mb-2">B.Sc. Student, Industrial and Production Engineering, BUET</p>
+          <a href="mailto:almazid0039@gmail.com" class="text-[accentRed] hover:text-[darkRed] font-semibold transition duration-300">almazid0039@gmail.com</a>
+        </div>
+        <!-- Developer 2: Muqtadir Fuad -->
+        <div class="bg-white p-6 rounded-xl shadow-lg animate-slide-up" style="animation-delay: 0.2s;">
+          <img src="images/fuad.png" alt="Profile photo of Muqtadir Fuad" class="developer-img mb-4">
+          <h3 class="text-2xl font-semibold text-[primaryRed] mb-2">Muqtadir Fuad</h3>
+          <p class="text-gray-700 mb-2">B.Sc. Student, Industrial and Production Engineering, BUET</p>
+          <a href="mailto:mmfuad01@gmail.com" class="text-[accentRed] hover:text-[darkRed] font-semibold transition duration-300">mmfuad01@gmail.com</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Particle container -->
+  <div id="particles"></div>
+
+  <script>
+    // Particle generation
+    const particleCount = 20;
+    const particlesContainer = document.getElementById("particles");
+    function createParticle() {
+      const particle = document.createElement("div");
+      particle.classList.add("particle");
+      const size = Math.random() * 4 + 3;
+      particle.style.width = size + "px";
+      particle.style.height = size + "px";
+      particle.style.left = Math.random() * 100 + "vw";
+      particle.style.animationDelay = Math.random() * 5 + "s";
+      particlesContainer.appendChild(particle);
+    }
+    for (let i = 0; i < particleCount; i++) {
+      createParticle();
+    }
+
+    // Mobile navigation toggle
+    const navToggle = document.querySelector('.nav-toggle');
+    const navMenu = document.querySelector('nav .menu');
+    navToggle.addEventListener('click', () => {
+      navMenu.classList.toggle('open');
+      navToggle.classList.toggle('active');
+    });
+    navMenu.querySelectorAll('a').forEach(link => {
+      link.addEventListener('click', () => {
+        navMenu.classList.remove('open');
+        navToggle.classList.remove('active');
+      });
+    });
+  </script>
+</body>
+</html>

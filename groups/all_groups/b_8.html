@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>IoT-Based Smart Conveyor System (Group B8)</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.0.0"></script>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+    <h1>Group B8</h1>
+    <h2>IoT-Based Smart Conveyor System for Integrated Quality, Inventory and Process Control</h2>
+
+    <section>
+      <strong>Group Members:</strong>
+      <ul>
+        <li>Md. Ahabab Ul Haq (2008076)</li>
+        <li>Chowdhury Mouinur Rahman (2008077)</li>
+        <li>Most. Noshin Ibnat (2008078)</li>
+        <li>Md. Muqtadir Fuad (2008079)</li>
+        <li>Abdullah Al Mazid (2008080)</li>
+      </ul>
+    </section>
+
+    <section>
+      <strong>Problem Statement:</strong>
+      <p>
+        Manual quality inspection, especially weight-based product validation, is a time-consuming and error-prone process in manufacturing. It leads to inconsistencies, labor inefficiencies, and increased defects. An automated and intelligent weight-based sorting system is required to improve speed, accuracy, and consistency in production environments.
+      </p>
+    </section>
+
+    <section>
+      <strong>Devices & Tasks:</strong>
+      <table>
+        <tr>
+          <th>Device / Component</th>
+          <th>Quantity</th>
+          <th>Task / Function</th>
+        </tr>
+        <tr>
+          <td>5kg Load Cell</td>
+          <td>1</td>
+          <td>Measures the weight of each item on the conveyor</td>
+        </tr>
+        <tr>
+          <td>HX711 Amplifier</td>
+          <td>1</td>
+          <td>Amplifies load cell signal and provides digital output</td>
+        </tr>
+        <tr>
+          <td>Ultrasonic Sensor (HC-SR04)</td>
+          <td>1</td>
+          <td>Detects object presence for conveyor/process control</td>
+        </tr>
+        <tr>
+          <td>SG-90 Micro Servo Motor</td>
+          <td>1</td>
+          <td>Used for sorting/rejecting items based on weight</td>
+        </tr>
+        <tr>
+          <td>LED</td>
+          <td>1</td>
+          <td>Status indication (process or error feedback)</td>
+        </tr>
+        <tr>
+          <td>Arduino Uno</td>
+          <td>1</td>
+          <td>Main microcontroller (processes all sensor data)</td>
+        </tr>
+        <tr>
+          <td>ESP32</td>
+          <td>1</td>
+          <td>Wi-Fi communication; sends data to cloud/server</td>
+        </tr>
+        <tr>
+          <td>Breadboard Power Module</td>
+          <td>1</td>
+          <td>Provides power supply to the circuit/components</td>
+        </tr>
+        <tr>
+          <td>L298N Motor Driver</td>
+          <td>1</td>
+          <td>Controls the DC gear motor for conveyor movement</td>
+        </tr>
+        <tr>
+          <td>6V 600RPM DC Gear Motor</td>
+          <td>1</td>
+          <td>Drives the conveyor belt</td>
+        </tr>
+        <tr>
+          <td>Conveyor Rollers & Belt</td>
+          <td>1 set</td>
+          <td>Physical platform for item transportation</td>
+        </tr>
+        <tr>
+          <td>Jumper Wires</td>
+          <td>Multiple</td>
+          <td>Electrical connections between components</td>
+        </tr>
+      </table>
+    </section>
+
+    <section>
+      <strong>Project Description:</strong>
+      <ol>
+        <li>Item is placed on the conveyor belt.</li>
+        <li>Conveyor motor starts rotating, moving item to the load cell.</li>
+        <li>Load cell (with HX711) measures the item’s weight.</li>
+        <li>Weight data sent to Arduino Uno, processed and compared with set limits from database.</li>
+        <li>Ultrasonic sensor detects object presence for process control (ensures conveyor only moves when item detected).</li>
+        <li>If weight is within limit, item moves to sorting section; if not, servo motor rejects item.</li>
+        <li>ESP32 module uploads data to server/cloud for monitoring and analytics.</li>
+        <li>LED indicator shows status of process or errors.</li>
+      </ol>
+    </section>
+
+    <section>
+      <strong>Poster:</strong>
+      <p>
+        <a href="../poster/B8.png" target="_blank">Download Project Poster</a>
+      </p>
+      <p>
+        <img src="../poster/B8.png" alt="Project Poster" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+      </p>
+    </section>
+    <section>
+        <strong>Circuit Diagram</strong>
+        <p>
+        <img src="../circuits/b4.png" alt="Circuit Diagram" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+      </p>
+    </section>
+    <section>
+      <strong>Arduino Code:</strong>
+      <pre>
+        #include <HX711.h>
+
+        #define DOUT  A1  // HX711 data pin
+        #define CLK   A0  // HX711 clock pin
+        HX711 scale;
+
+        #define trigPin 9
+        #define echoPin 10
+        #define motorIN1 3
+        #define motorIN2 4
+        #define motorEN  5
+        #define ledPin   6
+
+        float weightThreshold = 100.0; // Start motor if weight > 10 grams
+        int objectCount = 0;
+
+        void setup() {
+          Serial.begin(9600);
+
+          // HX711 setup
+          scale.begin(DOUT, CLK);
+          scale.set_scale();    // You must adjust this according to your calibration
+          scale.tare();         // Reset the scale to 0
+
+          // Pins
+          pinMode(trigPin, OUTPUT);
+          pinMode(echoPin, INPUT);
+          pinMode(motorIN1, OUTPUT);
+          pinMode(motorIN2, OUTPUT);
+          pinMode(motorEN, OUTPUT);
+          pinMode(ledPin, OUTPUT);
+
+          digitalWrite(ledPin, LOW);
+          stopMotor();
+        }
+
+        void loop() {
+          int speed= 30;
+          float weight = ((scale.get_units())/250)*0.61;
+          if (weight > weightThreshold) {
+            
+            runMotor(speed); // Run motor at slow speed (PWM: 0-255)
+          } else {
+            stopMotor();
+          }
+
+          long distance = getDistanceCM();
+
+          if (distance > 1 && distance < 5) {
+            digitalWrite(ledPin, HIGH);
+            objectCount++;
+            delay(1000);
+            digitalWrite(ledPin, LOW);
+          }
+
+          // Send to ESP32 over Serial
+          Serial.print("Weight:");
+          Serial.print(weight);
+          Serial.print(",Distance:");
+          Serial.print(distance);
+          Serial.print(",Speed:");
+          Serial.println(speed);  // Hardcoded motor speed for now
+
+          delay(5000); // Wait before next read
+        }
+
+        void runMotor(int pwmSpeed) {
+          digitalWrite(motorIN1, HIGH);
+          digitalWrite(motorIN2, LOW);
+          analogWrite(motorEN, pwmSpeed);
+        }
+
+        void stopMotor() {
+          digitalWrite(motorIN1, LOW);
+          digitalWrite(motorIN2, LOW);
+          analogWrite(motorEN, 0);
+        }
+
+        long getDistanceCM() {
+          digitalWrite(trigPin, LOW);
+          delayMicroseconds(2);
+          digitalWrite(trigPin, HIGH);
+          delayMicroseconds(10);
+          digitalWrite(trigPin, LOW);
+          long duration = pulseIn(echoPin, HIGH);
+          long distance = duration * 0.034 / 2;
+          return distance;
+        }
+      </pre>
+      <strong>ESP32 Code:</strong>
+      <pre>
+        #include <WiFi.h>
+        #include <HTTPClient.h>
+
+        #define RXD2 16  // Connect to Arduino TX (via voltage divider)
+        #define TXD2 17  // Connect to Arduino RX
+
+        const char* ssid = "fuad";
+        const char* password = "12345678";
+
+        const char* server = "http://ipe20-buet.top/get_data.php";
+        const char* group = "groupB8";
+        const char* pass = "passB8";
+
+        void setup() {
+          Serial.begin(115200);  // Debugging
+          Serial2.begin(9600, SERIAL_8N1, RXD2, TXD2); // Serial2 for Arduino communication
+
+          WiFi.begin(ssid, password);
+          Serial.print("Connecting to WiFi");
+
+          while (WiFi.status() != WL_CONNECTED) {
+            delay(500);
+            Serial.print(".");
+          }
+
+          Serial.println("\nWiFi connected.");
+        }
+
+        void loop() {
+          if (Serial2.available()) {
+            String incoming = Serial2.readStringUntil('\n');
+            incoming.trim();  // Remove any extra \r or spaces
+            Serial.println("From Arduino: " + incoming);
+
+            // Example: "Weight:123,Distance:45,Speed:100"
+            parseAndSend(incoming);
+          }
+        }
+
+        void parseAndSend(String data) {
+          int start = 0;
+          
+          while (start < data.length()) {
+            int sep = data.indexOf(',', start);  // Find end of current pair
+            if (sep == -1) sep = data.length();  // Last pair
+
+            String pair = data.substring(start, sep);
+            int colonIndex = pair.indexOf(':');
+
+            if (colonIndex != -1) {
+              String name = pair.substring(0, colonIndex);
+              String value = pair.substring(colonIndex + 1);
+
+              name.trim();
+              value.trim();
+
+              sendToServer(name, value);
+            }
+
+            start = sep + 1;  // Move to next pair
+          }
+        }
+
+        void sendToServer(String sensorName, String sensorData) {
+          if (WiFi.status() == WL_CONNECTED) {
+            HTTPClient http;
+
+            String url = String(server) + "?g=" + group +
+                        "&sn=" + sensorName +
+                        "&sd=" + sensorData +
+                        "&p=" + pass +
+                        "&format=json";
+
+            Serial.println("Sending to server: " + url);
+
+            http.begin(url);
+            int httpCode = http.GET();
+
+            if (httpCode > 0) {
+              String payload = http.getString();
+              Serial.println("Server response: " + payload);
+            } else {
+              Serial.println("Error sending data: " + String(http.errorToString(httpCode)));
+            }
+
+            http.end();
+          } else {
+            Serial.println("WiFi not connected!");
+          }
+        }
+      </pre> 
+    </section>
+
+
+
+    <section>
+      <strong>Video Demonstration</strong>
+      <center>
+        <iframe width="560" height="315"
+          src="https://www.youtube.com/embed/_iA_Y-_De4U"
+          title="IoT-based Smart Conveyor System for Integrated Quality, Inventory and Process Control"
+          frameborder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          referrerpolicy="strict-origin-when-cross-origin"
+          allowfullscreen>
+        </iframe>
+      </center>
+    </section>
+
+    <section>
+      <strong>Sensor Data Visualization:</strong><br>
+      <label for="sensor_name">Select Sensor:</label>
+      <select id="sensor_name" onchange="loadGraph()">
+        <option value="">Loading sensors...</option>
+      </select>
+      <canvas id="myChart" width="600" height="300"></canvas>
+    </section>
+
+  <script>
+    let chart = null;
+    const threshold = 100;
+    async function loadSensors() {
+      try {
+        const response = await fetch('show_data.php?mode=names&group=groupB8');
+        if (!response.ok) throw new Error('Network response was not ok');
+        const sensors = await response.json();
+        let dropdown = document.getElementById('sensor_name');
+        dropdown.innerHTML = "";
+        if (sensors.length === 0) {
+          dropdown.innerHTML = '<option value="">No sensors found</option>';
+          return;
+        }
+        sensors.forEach(sensor => {
+          let opt = document.createElement('option');
+          opt.value = sensor;
+          opt.textContent = sensor;
+          dropdown.appendChild(opt);
+        });
+        dropdown.value = sensors[0];
+        loadGraph();
+      } catch (error) {
+        alert('Failed to load sensor list.');
+      }
+    }
+
+    async function loadGraph() {
+      const sensorName = document.getElementById('sensor_name').value;
+      if (!sensorName) return;
+      try {
+        const response = await fetch(`show_data.php?mode=data&group=groupB8&sensor_name=${encodeURIComponent(sensorName)}`);
+        if (!response.ok) throw new Error('Network response was not ok');
+        const data = await response.json();
+        if (data.error) {
+          alert(data.error);
+          return;
+        }
+        const timestamps = data.timestamps.slice(-50);
+        const values = data.values.slice(-50);
+        const below = [], above = [];
+        values.forEach((value, i) => {
+          if (value <= threshold) {
+            below[i] = value; above[i] = null;
+          } else {
+            below[i] = null; above[i] = value;
+          }
+        });
+        const ctx = document.getElementById('myChart').getContext('2d');
+        if (chart) chart.destroy();
+        chart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: timestamps,
+            datasets: [
+              {
+                label: '≤ Threshold',
+                data: below,
+                borderColor: '#8B0000',
+                backgroundColor: 'rgba(139,0,0,0.1)',
+                fill: true,
+                tension: 0.4
+              },
+              {
+                label: '> Threshold',
+                data: above,
+                borderColor: '#FF0000',
+                backgroundColor: 'rgba(255,0,0,0.1)',
+                fill: true,
+                tension: 0.4
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            scales: {
+              x: { title: { display: true, text: 'Timestamp' } },
+              y: { title: { display: true, text: 'Sensor Data' }, beginAtZero: true }
+            },
+            plugins: {
+              annotation: {
+                annotations: {
+                  thresholdLine: {
+                    type: 'line',
+                    yMin: threshold,
+                    yMax: threshold,
+                    borderColor: '#A52A2A',
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    label: {
+                      content: `Threshold: ${threshold}`,
+                      enabled: true,
+                      position: 'end'
+                    }
+                  }
+                }
+              }
+            }
+          }
+        });
+      } catch (error) {
+        alert('Failed to load sensor data.');
+      }
+    }
+    loadSensors();
+  </script>
+</body>
+</html>

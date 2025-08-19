@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Industrial Waste Management & Composting System (Group B4)</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+  <h1>Group B4</h1>
+  <h2>Industrial Waste Management & Composting System</h2>
+
+  <section>
+    <strong>Group Members:</strong>
+    <ul>
+      <li>2008061</li>
+      <li>2008067</li>
+      <li>2008075</li>
+      <li>2008084</li>
+      <li>2008119</li>
+    </ul>
+  </section>
+
+  <section>
+    <strong>Problem Statement:</strong>
+    <p>
+      Smart industrial waste sorting and composting management system using automated sensor-based detection and processing optimization.
+    </p>
+  </section>
+
+  <section>
+    <strong>Devices & Tasks:</strong>
+    <table>
+      <tr>
+        <th>Device / Component</th>
+        <th>Quantity</th>
+        <th>Task / Function</th>
+      </tr>
+      <tr>
+        <td>Inductive Proximity Sensor (LJ18A3-8-2/BX)</td>
+        <td>1</td>
+        <td>Detects and separates metal/non-organic waste</td>
+      </tr>
+      <tr>
+        <td>Soil Moisture Sensor (YL-69 + YL-38)</td>
+        <td>1</td>
+        <td>Monitors compost/moisture level</td>
+      </tr>
+      <tr>
+        <td>Load Cell (HX711 + 5kg Load Cell)</td>
+        <td>1</td>
+        <td>Measures waste/compost weight</td>
+      </tr>
+      <tr>
+        <td>Servo Motor (MG996R)</td>
+        <td>1</td>
+        <td>Drives sorting gates</td>
+      </tr>
+      <tr>
+        <td>Solenoid Valve (12V DC)</td>
+        <td>1</td>
+        <td>Controls fluid/air flow for composting process</td>
+      </tr>
+      <tr>
+        <td>Relay Module (4-Channel 5V)</td>
+        <td>1</td>
+        <td>Switches various high power devices (motors, pumps, etc.)</td>
+      </tr>
+      <tr>
+        <td>ESP32</td>
+        <td>1</td>
+        <td>Data processing, Wi-Fi, sends data to server/cloud</td>
+      </tr>
+      <tr>
+        <td>Arduino UNO</td>
+        <td>1</td>
+        <td>Controls sensors, actuators, and local processing</td>
+      </tr>
+    </table>
+  </section>
+
+  <section>
+    <strong>Project Description:</strong>
+    <p>
+      In Bangladesh, this Smart Industrial Waste Sorting and Composting Management System is especially relevant for agro-based, food processing, textile, poultry, and urban industrial sectors. It helps in sorting organic from non-organic waste, enabling composting and recycling.
+    </p>
+    <p>
+      For example, agro-industries produce peels and husks, textile industries generate fabric scraps, and poultry farms accumulate biodegradable droppings. Traditional waste handling in these sectors is inefficient. The proposed system detects and separates metal, monitors compost moisture, and evaluates weight with the help of sensors.
+    </p>
+    <p>
+      The system uses an ESP32 microcontroller and Python-based processing to automate sorting and composting operations. It sends real-time sensor data to a cloud server for monitoring and regulatory compliance. By decentralizing waste management, it supports sustainability, reduces environmental pollution, and aligns with circular economy goals.
+    </p>
+  </section>
+
+  <section>
+    <strong>Poster:</strong>
+    <p>
+      <a href="../poster/B4.jpg" target="_blank">Download Project Poster</a>
+    </p>
+    <p>
+      <img src="../poster/B4.jpg" alt="Project Poster" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+    </p>
+  </section>
+
+  <section>
+    <strong>Arduino Code (Servo Motor + Arduino UNO):</strong>
+    <pre>
+#include &lt;Servo.h&gt;
+
+Servo servo1;
+Servo servo2;
+
+const int sensorPin = A0;
+const int threshold = 1000;
+
+const int servo1Pin = 9;
+const int servo2Pin = 10;
+
+void setup() {
+  Serial.begin(9600);
+
+  servo1.attach(servo1Pin);
+  servo2.attach(servo2Pin);
+
+  // Set initial servo positions
+  servo1.write(0);
+  servo2.write(0);
+}
+
+void loop() {
+  int sensorValue = analogRead(sensorPin);
+  Serial.print("Soil moisture value: ");
+  Serial.println(sensorValue);
+
+  if (sensorValue &lt; threshold) {
+    // If dry soil: spin both servos
+    servo1.write(90); // Move to mid position
+    servo2.write(90);
+    delay(1000); // Hold for 1 second
+
+    // Return to initial position
+    servo1.write(0);
+    servo2.write(0);
+    delay(1000); // Optional delay
+  }
+
+  delay(500); // Check every 0.5 seconds
+}
+    </pre>
+    <strong>ESP32 Code (Data Upload):</strong>
+    <pre>
+#include &lt;WiFi.h&gt;
+#include &lt;HTTPClient.h&gt;
+
+// WiFi credentials
+const char* ssid = "Your_SSID";
+const char* password = "Your_PASSWORD";
+
+// Server URL (replace with correct one if needed)
+String baseURL = "http://ipe20-buet.top/get_data.php?g=groupB4&sn=Sensor&sd=13&p=passB4&format=json";
+
+// Define pins for Serial2
+#define RXD2 16  // ESP32 GPIO16 to Arduino UNO TX
+#define TXD2 17  // ESP32 GPIO17 to Arduino UNO RX
+
+void setup() {
+  // Debug Serial Monitor
+  Serial.begin(115200);
+  // Serial2 for Arduino communication
+  Serial2.begin(9600, SERIAL_8N1, RXD2, TXD2); // Use GPIO16 (RX) and GPIO17 (TX)
+
+  // Connect to WiFi
+  WiFi.begin(ssid, password);
+  Serial.print("Connecting to WiFi");
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\nWiFi connected");
+}
+
+void loop() {
+  if (Serial2.available()) {
+    String sensorData = Serial2.readStringUntil('\n');
+    sensorData.trim();
+
+    Serial.println("Received from Arduino: " + sensorData);
+
+    // Prepare GET request URL
+    String fullURL = baseURL + "&data=" + sensorData;
+
+    if (WiFi.status() == WL_CONNECTED) {
+      HTTPClient http;
+      http.begin(fullURL);
+      int httpCode = http.GET();
+
+      if (httpCode > 0) {
+        String response = http.getString();
+        Serial.println("Server response: " + response);
+      } else {
+        Serial.println("HTTP GET failed. Code: " + String(httpCode));
+      }
+
+      http.end();
+    } else {
+      Serial.println("WiFi not connected.");
+    }
+  }
+
+  delay(2000);
+}
+    </pre>
+  </section>
+
+  <section>
+  <strong>Video Demonstration</strong>
+  <center>
+    <iframe width="560" height="315" src="https://www.youtube.com/embed/lsUEC-geQsk"
+      title="YouTube video player" frameborder="0"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+      referrerpolicy="strict-origin-when-cross-origin" allowfullscreen>
+    </iframe>
+  </center>
+</section>
+
+
+  <section>
+    <strong>Sensor Data Visualization:</strong><br>
+    <label for="sensor_name">Select Sensor:</label>
+    <select id="sensor_name" onchange="loadGraph()">
+      <option value="">Loading sensors...</option>
+    </select>
+    <canvas id="myChart" width="600" height="300"></canvas>
+  </section>
+
+<script>
+  let chart = null;
+  const groupName = 'groupB4';  // to update group
+
+  async function loadSensors() {
+    try {
+      const response = await fetch(`show_data.php?mode=names&group=${groupName}`);
+      if (!response.ok) throw new Error('Network response was not ok');
+      const sensors = await response.json();
+
+      let dropdown = document.getElementById('sensor_name');
+      dropdown.innerHTML = "";
+
+      if (sensors.length === 0) {
+        dropdown.innerHTML = '<option value="">No sensors found</option>';
+        return;
+      }
+
+      sensors.forEach(sensor => {
+        let opt = document.createElement('option');
+        opt.value = sensor;
+        opt.textContent = sensor;
+        dropdown.appendChild(opt);
+      });
+
+      dropdown.value = sensors[0];
+      loadGraph();
+    } catch (error) {
+      alert('Failed to load sensor list.');
+    }
+  }
+
+  async function loadGraph() {
+    const sensorName = document.getElementById('sensor_name').value;
+    if (!sensorName) return;
+
+    try {
+      const response = await fetch(`show_data.php?mode=data&group=${groupName}&sensor_name=${encodeURIComponent(sensorName)}`);
+      if (!response.ok) throw new Error('Network response was not ok');
+      const data = await response.json();
+
+      if (data.error) {
+        alert(data.error);
+        return;
+      }
+
+      const ctx = document.getElementById('myChart').getContext('2d');
+      if(chart) chart.destroy();
+
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: data.timestamps,
+          datasets: [{
+            label: `${sensorName} Data`,
+            data: data.values,
+            borderColor: 'rgba(75, 192, 192, 1)',
+            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+            fill: true,
+            tension: 0.3
+          }]
+        },
+        options: {
+          scales: {
+            x: {
+              title: { display: true, text: 'Timestamp' }
+            },
+            y: {
+              title: { display: true, text: 'Sensor Data' },
+              beginAtZero: true
+            }
+          }
+        }
+      });
+    } catch (error) {
+      alert('Failed to load sensor data.');
+    }
+  }
+
+  loadSensors();
+</script>
+</body>
+</html>

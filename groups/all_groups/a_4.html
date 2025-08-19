@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>IoT-Based Environmental Monitoring System (Group A4)</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.0.0"></script>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+    <h1>Group A4</h1>
+    <h2>IoT-Based Environmental Monitoring System</h2>
+
+    <section>
+      <strong>Group Members:</strong>
+      <ul>
+        <li>2008002</li>
+        <li>2008008</li>
+        <li>2008010</li>
+        <li>2008013</li>
+        <li>2008047</li>
+      </ul>
+      <p><b>Team Leader:</b> Asif Salman Khan Tanim</p>
+    </section>
+
+    <section>
+      <strong>Problem Statement:</strong>
+      <p>
+        Indoor air quality and temperature have a significant impact on human health, especially in industrial and densely populated environments.
+        Poor air quality, indicated by high concentrations of CO₂ or other pollutants, can cause headaches, fatigue, and long-term respiratory issues.
+        Likewise, high ambient temperatures can lead to heat stress, equipment inefficiency, or health hazards for workers.
+        Manual monitoring is inefficient and may delay critical action.<br><br>
+        This project automatically monitors temperature and air quality in real time, provides visual alerts with LEDs, and uploads all sensor data online for remote access.
+      </p>
+    </section>
+
+    <section>
+      <strong>Devices & Tasks:</strong>
+      <table>
+        <tr>
+          <th>Device / Component</th>
+          <th>Quantity</th>
+          <th>Task / Function</th>
+        </tr>
+        <tr>
+          <td>DHT11 Temperature & Humidity Sensor</td>
+          <td>1</td>
+          <td>Measures ambient temperature and humidity</td>
+        </tr>
+        <tr>
+          <td>MQ135 Air Quality Sensor</td>
+          <td>1</td>
+          <td>Detects CO₂ and other gas pollution</td>
+        </tr>
+        <tr>
+          <td>ESP-01 (ESP8266)</td>
+          <td>1</td>
+          <td>Wi-Fi controller for uploading data to cloud/server</td>
+        </tr>
+        <tr>
+          <td>Red LED</td>
+          <td>2</td>
+          <td>Lights up if unsafe temperature or poor air quality detected</td>
+        </tr>
+      </table>
+    </section>
+
+    <section>
+      <strong>Project Description:</strong>
+      <ol>
+        <li>DHT11 sensor measures temperature; if >35°C, red LED turns ON.</li>
+        <li>MQ135 sensor checks air quality; if output is 1, red LED turns ON.</li>
+        <li>Sensor data is uploaded in real time to a cloud server for monitoring and historical logging.</li>
+        <li>The system is fully automated, low-power, and applicable in factories, data centers, offices, and indoor agriculture.</li>
+      </ol>
+    </section>
+
+    <section>
+      <strong>Industrial Application:</strong>
+      <ul>
+        <li>Manufacturing plants (especially those with gas emissions)</li>
+        <li>Garment factories (worker comfort and safety)</li>
+        <li>Indoor farming or greenhouses</li>
+        <li>Pharmaceutical production environments</li>
+        <li>Data centers and server rooms</li>
+        <li>Offices, schools, and hospitals</li>
+      </ul>
+    </section>
+
+    <section>
+      <strong>Poster:</strong>
+      <p>
+        <a href="../poster/A4.jpg" target="_blank">Download Project Poster</a>
+      </p>
+      <p>
+        <img src="../poster/A4.jpg" alt="Project Poster" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+      </p>
+    </section>
+
+    <section>
+      <strong>ESP8266 Code (MQ135 Air Quality):</strong>
+      <pre>
+#include &lt;ESP8266WiFi.h&gt;
+#include &lt;ESP8266HTTPClient.h&gt;
+#include &lt;ArduinoJson.h&gt;
+
+const char* ssid = "Sakib";
+const char* password = "12332113";
+const char* baseUrl = "http://ipe20-buet.top/get_data.php";
+const char* groupName = "groupA4";
+const char* sensorName = "CO2";
+const char* passcode = "passA4";
+#define MQ135_DIGITAL_PIN 2
+const int ledPin = 2;  // GPIO2 also controls LED on ESP-01
+
+WiFiClient client;
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+  Serial.println("\nConnecting to WiFi...");
+  WiFi.begin(ssid, password);
+  int retry = 0;
+  while (WiFi.status() != WL_CONNECTED && retry < 20) {
+    delay(500); Serial.print(".");
+    retry++;
+  }
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\nWiFi connected!");
+    Serial.print("IP address: ");
+    Serial.println(WiFi.localIP());
+  } else {
+    Serial.println("\nFailed to connect to WiFi.");
+  }
+  pinMode(MQ135_DIGITAL_PIN, INPUT);
+  pinMode(ledPin, OUTPUT);
+  digitalWrite(ledPin, LOW);
+}
+
+void sendToServer(float gas) {
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+    String url = String(baseUrl) +
+                 "?g=" + groupName +
+                 "&sn=" + sensorName +
+                 "&sd=" + String(gas, 4) +
+                 "&p=" + passcode +
+                 "&format=json";
+    Serial.println("Sending data: " + url);
+    http.begin(client, url);
+    int httpCode = http.GET();
+    if (httpCode > 0) {
+      String response = http.getString();
+      Serial.println("Response: " + response);
+    } else {
+      Serial.print("HTTP Error: "); Serial.println(httpCode);
+    }
+    http.end();
+  } else {
+    Serial.println("WiFi not connected");
+  }
+}
+
+void loop() {
+  float gas = digitalRead(MQ135_DIGITAL_PIN); // 1 = bad air, 0 = clean
+  if (gas == 1) {
+    digitalWrite(ledPin, HIGH);
+    Serial.println("Gas Detected: LED ON");
+  } else {
+    digitalWrite(ledPin, LOW);
+    Serial.println("Air Clean: LED OFF");
+  }
+  Serial.print("Gas Reading (from sensor): "); Serial.println(gas);
+  sendToServer(gas);
+  delay(5000);
+}
+      </pre>
+    </section>
+    <section>
+      <strong>ESP8266 Code (DHT11 Temperature):</strong>
+      <pre>
+#include &lt;ESP8266WiFi.h&gt;
+#include &lt;ESP8266HTTPClient.h&gt;
+#include &lt;ArduinoJson.h&gt;
+#include &lt;DHT.h&gt;
+
+const char* ssid = "Sakib";
+const char* password = "12332113";
+const char* baseUrl = "http://ipe20-buet.top/get_data.php";
+const char* groupName = "groupA4";
+const char* sensorName = "Temperature";
+const char* passcode = "passA4";
+
+#define DHTPIN 2
+#define LED_PIN 0
+#define DHTTYPE DHT11
+
+DHT dht(DHTPIN, DHTTYPE);
+WiFiClient client;
+
+float tempThreshold = 35.0;
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+
+  pinMode(LED_PIN, OUTPUT);
+  digitalWrite(LED_PIN, LOW);
+
+  Serial.println("Connecting to WiFi...");
+  WiFi.begin(ssid, password);
+
+  int retry = 0;
+  while (WiFi.status() != WL_CONNECTED && retry < 20) {
+    delay(500); Serial.print(".");
+    retry++;
+  }
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\nWiFi connected!");
+    Serial.print("IP address: "); Serial.println(WiFi.localIP());
+  } else {
+    Serial.println("\nFailed to connect to WiFi.");
+  }
+  dht.begin();
+}
+
+void sendToServer(float temperature, float humidity) {
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+    String url = String(baseUrl) +
+                 "?g=" + groupName +
+                 "&sn=" + sensorName +
+                 "&sd=" + String(temperature, 2) + "," + String(humidity, 2) +
+                 "&p=" + passcode +
+                 "&format=json";
+    Serial.println("Sending data: " + url);
+    http.begin(client, url);
+    int httpCode = http.GET();
+    if (httpCode > 0) {
+      String response = http.getString();
+      Serial.println("Response: " + response);
+    } else {
+      Serial.print("HTTP Error: "); Serial.println(httpCode);
+    }
+    http.end();
+  } else {
+    Serial.println("WiFi not connected");
+  }
+}
+
+void loop() {
+  float temperature = dht.readTemperature();
+  float humidity = dht.readHumidity();
+  if (isnan(temperature) || isnan(humidity)) {
+    Serial.println("Failed to read from DHT sensor!");
+    return;
+  }
+  Serial.print("Temperature: "); Serial.print(temperature);
+  Serial.print(" °C | Humidity: "); Serial.print(humidity); Serial.println(" %");
+  sendToServer(temperature, humidity);
+  if (temperature >= tempThreshold) {
+    digitalWrite(LED_PIN, HIGH);
+    Serial.println("LED ON (Temperature threshold exceeded)");
+  } else {
+    digitalWrite(LED_PIN, LOW);
+    Serial.println("LED OFF");
+  }
+  delay(5000);
+}
+      </pre>
+    </section>
+
+    <section>
+        <strong>Video Demonstration</strong>
+        <center>
+          <iframe width="560" height="315" src="https://www.youtube.com/embed/lpJKLejdjSE" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+        </center>
+    </section>
+
+    <section>
+      <strong>Sensor Data Visualization:</strong><br>
+      <label for="sensor_name">Select Sensor:</label>
+      <select id="sensor_name" onchange="loadGraph()">
+        <option value="">Loading sensors...</option>
+      </select>
+      <canvas id="myChart" width="600" height="300"></canvas>
+    </section>
+
+  <script>
+    let chart = null;
+    const threshold = 1; // For binary air quality data; temperature could be set to 35 if needed
+    async function loadSensors() {
+      try {
+        const response = await fetch('show_data.php?mode=names&group=groupA4');
+        if (!response.ok) throw new Error('Network response was not ok');
+        const sensors = await response.json();
+        let dropdown = document.getElementById('sensor_name');
+        dropdown.innerHTML = "";
+        if (sensors.length === 0) {
+          dropdown.innerHTML = '<option value="">No sensors found</option>';
+          return;
+        }
+        sensors.forEach(sensor => {
+          let opt = document.createElement('option');
+          opt.value = sensor;
+          opt.textContent = sensor;
+          dropdown.appendChild(opt);
+        });
+        dropdown.value = sensors[0];
+        loadGraph();
+      } catch (error) {
+        alert('Failed to load sensor list.');
+      }
+    }
+
+    async function loadGraph() {
+      const sensorName = document.getElementById('sensor_name').value;
+      if (!sensorName) return;
+      try {
+        const response = await fetch(`show_data.php?mode=data&group=groupA4&sensor_name=${encodeURIComponent(sensorName)}`);
+        if (!response.ok) throw new Error('Network response was not ok');
+        const data = await response.json();
+        if (data.error) {
+          alert(data.error);
+          return;
+        }
+        const timestamps = data.timestamps.slice(-50);
+        const values = data.values.slice(-50);
+        const below = [], above = [];
+        values.forEach((value, i) => {
+          if (value <= threshold) {
+            below[i] = value; above[i] = null;
+          } else {
+            below[i] = null; above[i] = value;
+          }
+        });
+        const ctx = document.getElementById('myChart').getContext('2d');
+        if (chart) chart.destroy();
+        chart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: timestamps,
+            datasets: [
+              {
+                label: '≤ Threshold',
+                data: below,
+                borderColor: '#8B0000',
+                backgroundColor: 'rgba(139,0,0,0.1)',
+                fill: true,
+                tension: 0.4
+              },
+              {
+                label: '> Threshold',
+                data: above,
+                borderColor: '#FF0000',
+                backgroundColor: 'rgba(255,0,0,0.1)',
+                fill: true,
+                tension: 0.4
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            scales: {
+              x: { title: { display: true, text: 'Timestamp' } },
+              y: { title: { display: true, text: 'Sensor Data' }, beginAtZero: true }
+            },
+            plugins: {
+              annotation: {
+                annotations: {
+                  thresholdLine: {
+                    type: 'line',
+                    yMin: threshold,
+                    yMax: threshold,
+                    borderColor: '#A52A2A',
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    label: {
+                      content: `Threshold: ${threshold}`,
+                      enabled: true,
+                      position: 'end'
+                    }
+                  }
+                }
+              }
+            }
+          }
+        });
+      } catch (error) {
+        alert('Failed to load sensor data.');
+      }
+    }
+    loadSensors();
+  </script>
+</body>
+</html>

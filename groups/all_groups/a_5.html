@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Ammonia Monitoring System for Fertilizer Industry (Group A5)</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.0.0"></script>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+    <h1>Group A5</h1>
+    <h2>Ammonia Concentration and Ambient Condition Monitoring System for Fertilizer Industry</h2>
+
+    <section>
+      <strong>Group Members:</strong>
+      <ul>
+        <li>2008005</li>
+        <li>2008016</li>
+        <li>2008022</li>
+        <li>2008026</li>
+        <li>2008031</li>
+      </ul>
+    </section>
+
+    <section>
+      <strong>Problem Statement:</strong>
+      <p>
+        Gasses like ammonia are widely used in the fertilizer industry. Ammonia is very harmful at higher concentrations. Additionally, controlling temperature and humidity is vital in these environments.
+      </p>
+    </section>
+
+    <section>
+      <strong>Devices &amp; Tasks:</strong>
+      <table>
+        <tr>
+          <th>Device / Component</th>
+          <th>Quantity</th>
+          <th>Task / Function</th>
+        </tr>
+        <tr>
+          <td>MQ137 Gas Sensor</td>
+          <td>1</td>
+          <td>Measures ammonia (NH₃) concentration (ppm)</td>
+        </tr>
+        <tr>
+          <td>DHT22 Sensor</td>
+          <td>1</td>
+          <td>Measures temperature and humidity</td>
+        </tr>
+        <tr>
+          <td>Exhaust Fan</td>
+          <td>1</td>
+          <td>Ventilates area when ammonia/temperature exceeds threshold</td>
+        </tr>
+        <tr>
+          <td>LED/Buzzer Alarm</td>
+          <td>1</td>
+          <td>Alerts personnel of hazardous conditions</td>
+        </tr>
+        <tr>
+          <td>ESP-01S Wi-Fi Module</td>
+          <td>1</td>
+          <td>Sends real-time data to web server</td>
+        </tr>
+        <tr>
+          <td>Adafruit ADS1115 ADC</td>
+          <td>1</td>
+          <td>Reads analog value from MQ137</td>
+        </tr>
+      </table>
+    </section>
+
+    <section>
+      <strong>Project Description:</strong>
+      <p>
+        Fertilizer industries play a vital role in agriculture but often involve the handling of hazardous gases, particularly ammonia (NH₃). Ammonia poses serious health and safety risks—even at low concentrations it can cause eye and respiratory irritation, and at higher levels, it can lead to chemical burns, respiratory failure, or death.
+      </p>
+      <p>
+        This project proposes a real-time IoT-based monitoring and control system specifically for fertilizer plants. It uses the MQ137 sensor to detect ammonia levels (in ppm) and a DHT22 sensor to measure temperature and humidity. All sensor data is transmitted via ESP01 Wi-Fi to a central web server for processing and display.
+      </p>
+      <ul>
+        <li><strong>Exhaust Fan:</strong> Activates to reduce ammonia concentration through ventilation.</li>
+        <li><strong>LED/Buzzer Alarm:</strong> Alerts personnel immediately about hazardous conditions.</li>
+      </ul>
+      <p>
+        This automated system improves industrial safety through continuous environmental monitoring and intelligent, server-controlled response. It is a low-cost, scalable solution for high-risk environments like fertilizer production plants.
+      </p>
+    </section>
+
+    <section>
+      <strong>Poster:</strong>
+      <p>
+        <a href="../poster/A5.jpg" target="_blank">Download Project Poster</a>
+      </p>
+      <p>
+        <img src="../poster/A5.jpg" alt="Project Poster" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+      </p>
+    </section>
+
+    <section>
+      <strong>Arduino/ESP8266 Code:</strong>
+      <pre>
+#include &lt;DHT.h&gt;
+#include &lt;Wire.h&gt;
+#include &lt;Adafruit_ADS1015.h&gt;
+#include &lt;ESP8266WiFi.h&gt;
+#include &lt;ESP8266HTTPClient.h&gt;
+#include &lt;ArduinoJson.h&gt;
+
+const char* ssid = "MHF";
+const char* password = "Siebensieben1";
+const char* serverHost = "ipe20-buet.top";
+const char* endpoint   = "/get_data.php";
+const char* groupName  = "groupA5";
+const char* temperatureSensorName = "Temperature";
+const char* ammoniaSensorName     = "Ammonia";
+const char* passcode   = "passA5";
+
+#define DHTPIN 2
+#define DHTTYPE DHT22
+#define FAN_PIN 0
+#define BUZZER_PIN 1
+
+DHT dht(DHTPIN, DHTTYPE);
+Adafruit_ADS1115 ads;
+WiFiClient client;
+
+const float RL = 10000.0;   // Load resistor in ohms
+const float Ro = 10000.0;   // Sensor resistance in clean air (update after calibration)
+const float a = -0.42;      // Slope from MQ-137 datasheet curve
+const float b = 1.92;       // Intercept
+
+void setup() {
+  Serial.begin(115200);
+  dht.begin();
+  pinMode(FAN_PIN, OUTPUT);
+  pinMode(BUZZER_PIN, OUTPUT);
+  digitalWrite(FAN_PIN, LOW);
+  digitalWrite(BUZZER_PIN, LOW);
+  if (!ads.begin()) {
+    Serial.println("ADS1115 not found!");
+    while (1);
+  }
+  ads.setGain(GAIN_ONE);
+
+  WiFi.begin(ssid, password);
+  Serial.print("Connecting to WiFi");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(300);
+    Serial.print(".");
+  }
+  Serial.println("\nWiFi connected.");
+}
+
+float measureAmmonia() {
+  int16_t adc = ads.readADC_SingleEnded(0);
+  float voltage = adc * 0.125 / 1000.0;
+  if (voltage <= 0.01) return 0;
+  float Rs = (5.0 - voltage) * RL / voltage;
+  float ratio = Rs / Ro;
+  float ppm = pow(10, a * log10(ratio) + b);
+  return ppm;
+}
+
+void sendToServer(String sensorName, float sensorValue) {
+  if (WiFi.status() != WL_CONNECTED) return;
+  HTTPClient http;
+  String url = String("http://") + serverHost + endpoint +
+               "?g=" + groupName +
+               "&sn=" + sensorName +
+               "&sd=" + String(sensorValue, 2) +
+               "&p=" + passcode +
+               "&format=json";
+  http.begin(client, url);
+  int httpCode = http.GET();
+  if (httpCode > 0) {
+    String response = http.getString();
+    StaticJsonDocument<256> doc;
+    DeserializationError err = deserializeJson(doc, response);
+    if (!err) {
+      if (sensorName == temperatureSensorName) {
+        int fan_feedback = doc["fan_control"];
+        digitalWrite(FAN_PIN, fan_feedback ? HIGH : LOW);
+      }
+      if (sensorName == ammoniaSensorName) {
+        int buzzer_feedback = doc["buzzer_control"];
+        digitalWrite(BUZZER_PIN, buzzer_feedback ? HIGH : LOW);
+      }
+    }
+  }
+  http.end();
+}
+
+void loop() {
+  float humidity = dht.readHumidity();
+  float temperature = dht.readTemperature();
+  if (isnan(humidity) || isnan(temperature)) return;
+  float ammonia = measureAmmonia();
+
+  if (temperature > 0 && temperature < 100) {
+    sendToServer(temperatureSensorName, temperature);
+    delay(2000);
+  }
+  if (ammonia >= 0) {
+    sendToServer(ammoniaSensorName, ammonia);
+  }
+  delay(5000);
+}
+      </pre>
+    </section>
+
+    <section>
+      <strong>Video Demonstration</strong>
+      <center>
+        <iframe width="560" height="315" src="https://www.youtube.com/embed/hln1d6_Y7mY" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+      </center>
+    </section>
+
+    <section>
+      <strong>Sensor Data Visualization:</strong><br>
+      <label for="sensor_name">Select Sensor:</label>
+      <select id="sensor_name" onchange="loadGraph()">
+        <option value="">Loading sensors...</option>
+      </select>
+      <canvas id="myChart" width="600" height="300"></canvas>
+    </section>
+
+  <script>
+    let chart = null;
+    const threshold = 30; // Example threshold, edit as needed
+    async function loadSensors() {
+      try {
+        const response = await fetch('show_data.php?mode=names&group=groupA5');
+        if (!response.ok) throw new Error('Network response was not ok');
+        const sensors = await response.json();
+        let dropdown = document.getElementById('sensor_name');
+        dropdown.innerHTML = "";
+        if (sensors.length === 0) {
+          dropdown.innerHTML = '<option value="">No sensors found</option>';
+          return;
+        }
+        sensors.forEach(sensor => {
+          let opt = document.createElement('option');
+          opt.value = sensor;
+          opt.textContent = sensor;
+          dropdown.appendChild(opt);
+        });
+        dropdown.value = sensors[0];
+        loadGraph();
+      } catch (error) {
+        alert('Failed to load sensor list.');
+      }
+    }
+
+    async function loadGraph() {
+      const sensorName = document.getElementById('sensor_name').value;
+      if (!sensorName) return;
+      try {
+        const response = await fetch(`show_data.php?mode=data&group=groupA5&sensor_name=${encodeURIComponent(sensorName)}`);
+        if (!response.ok) throw new Error('Network response was not ok');
+        const data = await response.json();
+        if (data.error) {
+          alert(data.error);
+          return;
+        }
+        const timestamps = data.timestamps.slice(-50);
+        const values = data.values.slice(-50);
+        const below = [], above = [];
+        values.forEach((value, i) => {
+          if (value <= threshold) {
+            below[i] = value; above[i] = null;
+          } else {
+            below[i] = null; above[i] = value;
+          }
+        });
+        const ctx = document.getElementById('myChart').getContext('2d');
+        if (chart) chart.destroy();
+        chart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: timestamps,
+            datasets: [
+              {
+                label: '≤ Threshold',
+                data: below,
+                borderColor: '#8B0000',
+                backgroundColor: 'rgba(139,0,0,0.1)',
+                fill: true,
+                tension: 0.4
+              },
+              {
+                label: '> Threshold',
+                data: above,
+                borderColor: '#FF0000',
+                backgroundColor: 'rgba(255,0,0,0.1)',
+                fill: true,
+                tension: 0.4
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            scales: {
+              x: { title: { display: true, text: 'Timestamp' } },
+              y: { title: { display: true, text: 'Sensor Data' }, beginAtZero: true }
+            },
+            plugins: {
+              annotation: {
+                annotations: {
+                  thresholdLine: {
+                    type: 'line',
+                    yMin: threshold,
+                    yMax: threshold,
+                    borderColor: '#A52A2A',
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    label: {
+                      content: `Threshold: ${threshold}`,
+                      enabled: true,
+                      position: 'end'
+                    }
+                  }
+                }
+              }
+            }
+          }
+        });
+      } catch (error) {
+        alert('Failed to load sensor data.');
+      }
+    }
+    loadSensors();
+  </script>
+</body>
+</html>

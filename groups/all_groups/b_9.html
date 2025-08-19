@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Smart Kitchen Safety System (Group B9)</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.0.0"></script>
+ <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+  <h1>Group B9</h1>
+  <h2>Smart IoT Based Flame and Gas Detection and Early Warning for Fire Safety in Garments Industry</h2>
+
+  <section>
+    <strong>Group Members:</strong>
+    <ul>
+      <li>2008065</li>
+      <li>2008071</li>
+      <li>2008085</li>
+      <li>2008104</li>
+      <li>2008107</li>
+    </ul>
+    <b>Leader:</b> Sagor Kumar Pramanik
+  </section>
+
+  <section>
+    <strong>Problem Statement:</strong>
+    <p>
+      Lack of real-time fire and gas leak detection in industrial kitchens leads to delayed responses and increased risk of accidents. A proactive safety system is essential for preventing such hazards.
+    </p>
+  </section>
+
+  <section>
+    <strong>Devices & Tasks:</strong>
+    <table>
+      <tr>
+        <th>Device / Component</th>
+        <th>Task / Function</th>
+      </tr>
+      <tr>
+        <td>MQ-2 Gas Sensor</td>
+        <td>Detects LPG and smoke (combustible gases)</td>
+      </tr>
+      <tr>
+        <td>IR Flame Sensor (YG1006/KY-026)</td>
+        <td>Detects presence of flame (fire)</td>
+      </tr>
+      <tr>
+        <td>Exhaust Fan (12V DC)</td>
+        <td>Vents out gas during emergency</td>
+      </tr>
+      <tr>
+        <td>Buzzer Alarm (5V)</td>
+        <td>Alerts personnel when hazard detected</td>
+      </tr>
+      <tr>
+        <td>ESP32</td>
+        <td>Main controller, cloud communication</td>
+      </tr>
+      <tr>
+        <td>2-Channel Relay Module</td>
+        <td>Switches exhaust fan & buzzer</td>
+      </tr>
+    </table>
+  </section>
+
+  <section>
+    <strong>Project Description:</strong>
+    <ol>
+      <li>The ESP32 microcontroller reads data from the MQ-2 gas sensor and IR flame sensor.</li>
+      <li>If either sensor crosses its danger threshold, the system instantly:
+        <ul>
+          <li>Activates an exhaust fan to remove gas/smoke.</li>
+          <li>Sounds a buzzer alarm for immediate alert.</li>
+        </ul>
+      </li>
+      <li>Data is also sent in real time to a cloud platform via Wi-Fi, enabling remote monitoring and further automation like SMS/email notifications.</li>
+      <li>This system is suitable for industrial kitchens, garment factories, and similar high-risk environments.</li>
+    </ol>
+  </section>
+  <section>
+  <strong>Poster:</strong>
+  <p>
+    <a href="#" target="_blank">Download Project Poster</a>
+  </p>
+  <p>
+    <img src="../poster/B9.jpg" alt="Project Poster" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+  </p>
+</section>
+
+
+  <section>
+    <strong>Arduino Code:</strong>
+    <pre>
+#define SMOKE_SENSOR_PIN A0
+#define FLAME_SENSOR_PIN A1  // If you're using a digital pin for flame, use digitalRead()
+#define BUZZER_SMOKE 8
+#define BUZZER_FLAME 9
+
+// Constants for PPM conversion (approximate for MQ-2)
+const float Vcc = 5.0;       // Supply voltage
+const float RL = 5.0;        // Load resistance (in kΩ)
+const float Ro = 10.0;       // Sensor resistance in clean air (adjust after calibration)
+
+void setup() {
+  Serial.begin(9600);  // Send data to ESP32
+  pinMode(BUZZER_SMOKE, OUTPUT);
+  pinMode(BUZZER_FLAME, OUTPUT);
+  pinMode(FLAME_SENSOR_PIN, INPUT);
+  pinMode(SMOKE_SENSOR_PIN, INPUT);
+}
+
+float adcToPPM(int adcValue) {
+  float Vout = adcValue * (Vcc / 1023.0);  // Convert ADC to voltage
+  if (Vout <= 0.0) return 0.0;
+
+  float Rs = (Vcc - Vout) / Vout * RL;  // Sensor resistance
+  float ratio = Rs / Ro;
+
+  if (ratio <= 0) return 0;
+
+  // Approximate formula based on MQ-2 datasheet
+  float ppm = pow(10, (-0.42 * log10(ratio) + 3.54));
+  return ppm;
+}
+
+void loop() {
+  int smokeADC = analogRead(SMOKE_SENSOR_PIN);
+  int flameADC = analogRead(FLAME_SENSOR_PIN);  // If using digital, use digitalRead()
+
+  float smokePPM = adcToPPM(smokeADC);
+
+  // --- Buzzer logic ---
+  if (smokePPM > 7000) {
+    digitalWrite(BUZZER_SMOKE, HIGH);
+  } else {
+    digitalWrite(BUZZER_SMOKE, LOW);
+  }
+
+  if (flameADC > 2000) {  // Adjust threshold as needed
+    digitalWrite(BUZZER_FLAME, HIGH);
+  } else {
+    digitalWrite(BUZZER_FLAME, LOW);
+  }
+
+  // --- Send data to ESP32 ---
+  Serial.print(smokePPM, 2);    // Send float with 2 decimal points
+  Serial.print(",");
+  Serial.println(flameADC);     // Send raw flame sensor value
+
+  delay(1000);  // 1-second interval
+}
+    </pre>
+  </section>
+
+  <section>
+    <strong>Video Demonstration:</strong>
+    <center>
+      <iframe width="560" height="315" src="https://www.youtube.com/embed/2WnrpdeuC7s" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+    </center>
+  </section>
+
+  <section>
+    <strong>Sensor Data Visualization:</strong><br>
+    <label for="sensor_name">Select Sensor:</label>
+    <select id="sensor_name" onchange="loadGraph()">
+      <option value="">Loading sensors...</option>
+    </select>
+    <canvas id="myChart" width="600" height="300"></canvas>
+  </section>
+
+  <script>
+    let chart = null;
+    const groupName = 'groupB9';
+    const threshold = 7000; // Example threshold for smoke (PPM)
+
+    async function loadSensors() {
+      try {
+        const response = await fetch(`show_data.php?mode=names&group=${groupName}`);
+        if (!response.ok) throw new Error('Network response was not ok');
+        const sensors = await response.json();
+        let dropdown = document.getElementById('sensor_name');
+        dropdown.innerHTML = "";
+        if (sensors.length === 0) {
+          dropdown.innerHTML = '<option value="">No sensors found</option>';
+          return;
+        }
+        sensors.forEach(sensor => {
+          let opt = document.createElement('option');
+          opt.value = sensor;
+          opt.textContent = sensor;
+          dropdown.appendChild(opt);
+        });
+        dropdown.value = sensors[0];
+        loadGraph();
+      } catch (error) {
+        alert('Failed to load sensor list.');
+      }
+    }
+
+    async function loadGraph() {
+      const sensorName = document.getElementById('sensor_name').value;
+      if (!sensorName) return;
+      try {
+        const response = await fetch(`show_data.php?mode=data&group=${groupName}&sensor_name=${encodeURIComponent(sensorName)}`);
+        if (!response.ok) throw new Error('Network response was not ok');
+        const data = await response.json();
+        if (data.error) {
+          alert(data.error);
+          return;
+        }
+        const timestamps = data.timestamps.slice(-50);
+        const values = data.values.slice(-50);
+        // For PPM-like data, split above/below threshold:
+        const below = [], above = [];
+        values.forEach((value, i) => {
+          if (value <= threshold) {
+            below[i] = value; above[i] = null;
+          } else {
+            below[i] = null; above[i] = value;
+          }
+        });
+        const ctx = document.getElementById('myChart').getContext('2d');
+        if (chart) chart.destroy();
+        chart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: timestamps,
+            datasets: [
+              {
+                label: '≤ Threshold',
+                data: below,
+                borderColor: '#8B0000',
+                backgroundColor: 'rgba(139,0,0,0.1)',
+                fill: true,
+                tension: 0.4
+              },
+              {
+                label: '> Threshold',
+                data: above,
+                borderColor: '#FF0000',
+                backgroundColor: 'rgba(255,0,0,0.1)',
+                fill: true,
+                tension: 0.4
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            scales: {
+              x: { title: { display: true, text: 'Timestamp' } },
+              y: { title: { display: true, text: 'Sensor Data' }, beginAtZero: true }
+            },
+            plugins: {
+              annotation: {
+                annotations: {
+                  thresholdLine: {
+                    type: 'line',
+                    yMin: threshold,
+                    yMax: threshold,
+                    borderColor: '#A52A2A',
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    label: {
+                      content: `Threshold: ${threshold}`,
+                      enabled: true,
+                      position: 'end'
+                    }
+                  }
+                }
+              }
+            }
+          }
+        });
+      } catch (error) {
+        alert('Failed to load sensor data.');
+      }
+    }
+    loadSensors();
+  </script>
+</body>
+</html>

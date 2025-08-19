@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<style>
+body, html {
+  height: 100%;
+  margin: 0;
+}
+
+.bgimg {
+  background-image: url('https://www.dhakawebhost.com/images/default_index.jpg');
+  height: 100%;
+  background-position: center;
+  background-size: cover;
+  position: relative;
+  color: white;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 25px;
+}
+
+.topleft {
+  position: absolute;
+  top: 0;
+  left: 16px;
+}
+
+.bottomleft {
+  position: absolute;
+  bottom: 0;
+  left: 16px;
+}
+
+.middle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+
+hr {
+  margin: auto;
+  width: 40%;
+}
+</style>
+<body>
+
+<style>
+a:link, a:visited {
+  background-color: #3b5998;
+  color: white;
+  padding: 15px 25px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+}
+
+a:hover, a:active {
+  background-color: #c4302b;
+}
+</style>
+
+<div class="bgimg">
+  <div class="topleft">
+    <img src=https://www.dhakawebhost.com/wp-content/uploads/2022/08/logo6.png />
+  </div>
+  <div class="middle">
+    <h1>Thanks for choosing us</h1>
+    <hr>
+    <a href="https://www.facebook.com/dhakawebhost/" target="_blank">Join Our Facebook Group</a>
+    <hr>
+    <hr>
+    <a href="https://www.youtube.com/@dhakawebhostltd" target="_blank">Subscribe Our Youtube Channel</a>
+    
+    <p>We'll be there 24/7 to help you</p>
+  </div>
+  <div class="bottomleft">
+    Powered by <a href="https://www.dhakawebhost.com" target="_blank">Dhaka Web Host Ltd.</a>
+  </div>
+</div>
+
+</body>
+</html>
+
