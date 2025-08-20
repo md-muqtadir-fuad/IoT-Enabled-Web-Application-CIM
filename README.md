@@ -21,5 +21,5 @@ The platform allows students and instructors to explore **group projects** and a
 ```bash
 # Clone the project 
 git clone https://github.com/md-muqtadir-fuad/IoT-Enabled-Web-Application-CIM
-cd IoT-Enabled-Web-Application-CIM)
+cd IoT-Enabled-Web-Application-CIM
 
