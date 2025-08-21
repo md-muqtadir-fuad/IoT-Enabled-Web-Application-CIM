@@ -86,6 +86,5 @@ cd IoT-Enabled-Web-Application-CIM
 
 ## Contributors
 [![Contributors](https://contrib.rocks/image?repo=md-muqtadir-fuad/IoT-Enabled-Web-Application-CIM)](https://github.com/md-muqtadir-fuad/IoT-Enabled-Web-Application-CIM/graphs/contributors)
-[![Contributors](https://contrib.rocks/image?repo=abdullahalmazid/IoT-Enabled-Web-Application-CIM)](https://github.com/md-muqtadir-fuad/IoT-Enabled-Web-Application-CIM/graphs/contributors)
 
 
