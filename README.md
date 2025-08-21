@@ -3,7 +3,7 @@
 A lightweight web portal for the Computer Integrated Manufacturing (CIM) course at BUET (Department of IPE).  
 It showcases student project groups, posters, and (optionally) surfaces sensor data via simple PHP endpoints.
 
-> **Tech:** HTML/CSS/JS with PHP for data fetching.
+> **Tech:** HTML/CSS(Tailwind)/JS with PHP for data fetching.
 
 ---
 
