@@ -12,7 +12,7 @@ It showcases student project groups, posters, and (optionally) surfaces sensor d
 - [Features](#features)
 - [Project Structure](#project-structure)
 - [Deployment](#deployment)
-- [Credits](#credits)
+- [Contributors](#contributors)
 
 ---
 
@@ -79,10 +79,10 @@ Static preview
 git clone https://github.com/md-muqtadir-fuad/IoT-Enabled-Web-Application-CIM.git
 cd IoT-Enabled-Web-Application-CIM
 ```
-## Credits
-
-- Course: **BUET IPE-20 — CIM**
-- Authors/Contributors: See repo contributors
+## Contributors
+<a href="https://github.com/md-muqtadir-fuad/IoT-Enabled-Web-Application-CIM/graphs/contributors">
+  <img src="https://contributors-img.web.app/image?repo=md-muqtadir-fuad/IoT-Enabled-Web-Application-CIM" alt="List of Contributors"/>
+</a>
 
 <!--## Contributors
 [![Contributors](https://contrib.rocks/image?repo=md-muqtadir-fuad/IoT-Enabled-Web-Application-CIM)](https://github.com/md-muqtadir-fuad/IoT-Enabled-Web-Application-CIM/graphs/contributors)-->
